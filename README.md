@@ -42,6 +42,13 @@ yarn build    # Compile TypeScript
 yarn start    # Run compiled code
 ```
 
+**Expected time:** ~110-120 seconds for the complete pipeline with llama2
+- Data loading & chunking: ~5-10s
+- Embedding creation: ~30-40s
+- Retrieval & generation: ~60-80s
+
+*Note: Time varies based on model size. Smaller models (tinyllama) are faster (~30s) but produce lower quality answers. Larger models (mistral, mixtral) take longer but generate better responses.*
+
 ## How It Works
 
 1. **Data Loading**: Scrapes web content using Cheerio (selects `<p>` tags by default)
