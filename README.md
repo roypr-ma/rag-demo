@@ -77,11 +77,43 @@ Available models: [ollama.com/library](https://ollama.com/library)
 
 ## Troubleshooting
 
-Having issues? See [SETUP.md](SETUP.md) for detailed troubleshooting including:
-- Memory errors and Colima configuration
-- Ollama connection issues
-- Model installation problems
-- Docker and port conflicts
+### Error: "model runner has unexpectedly stopped"
+
+**Problem:** Insufficient memory allocated to Colima. Running Ollama with multiple models requires at least 4GB (6-8GB recommended).
+
+**Solution:**
+
+```bash
+# Check current memory
+colima list
+
+# Restart Colima with more memory
+colima stop
+colima start --memory 6 --cpu 4
+
+# Restart Ollama
+docker-compose down
+docker-compose up -d
+```
+
+**Free up memory** (if needed):
+```bash
+# Unload models
+curl -X POST http://localhost:11434/api/generate -d '{"model": "tinyllama", "keep_alive": 0}'
+curl -X POST http://localhost:11434/api/generate -d '{"model": "nomic-embed-text", "keep_alive": 0}'
+```
+
+**Useful commands:**
+```bash
+# Check memory usage
+docker stats ollama-server --no-stream
+
+# Verify Ollama is running
+curl http://localhost:11434/api/tags
+
+# Check container logs
+docker logs ollama-server
+```
 
 ## Architecture
 
