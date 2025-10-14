@@ -117,48 +117,27 @@ docker logs ollama-server
 
 ## Architecture
 
-```
-┌─────────────┐
-│  Web Page   │
-└──────┬──────┘
-       │ Cheerio
-       ▼
-┌─────────────┐
-│  Documents  │
-└──────┬──────┘
-       │ Split
-       ▼
-┌─────────────┐      ┌──────────────┐
-│   Chunks    │─────▶│  Embeddings  │
-└─────────────┘      │ (Ollama API) │
-                     └──────┬───────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │ Vector Store │
-                     └──────┬───────┘
-                            │
-    ┌───────────────────────┴──────────┐
-    │                                   │
-    ▼                                   │
-┌─────────────┐                         │
-│  Question   │                         │
-└──────┬──────┘                         │
-       │ Embed                          │
-       ▼                                │
-┌─────────────┐                         │
-│  Retrieval  │◀────────────────────────┘
-└──────┬──────┘   Similarity Search
-       │
-       ▼
-┌─────────────┐      ┌──────────────┐
-│   Context   │─────▶│  LLM (TinyLlama)
-└─────────────┘      └──────┬───────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │    Answer    │
-                     └──────────────┘
+```mermaid
+graph TD
+    A[Web Page] -->|Cheerio| B[Documents]
+    B -->|Split| C[Chunks]
+    C -->|Embed| D[Embeddings<br/>Ollama API]
+    D --> E[(Vector Store)]
+    
+    F[Question] -->|Embed| G[Query Vector]
+    G -->|Similarity Search| E
+    E -->|Retrieve| H[Relevant Context]
+    
+    H --> I[RAG Prompt]
+    F --> I
+    I -->|Generate| J[LLM<br/>TinyLlama]
+    J --> K[Answer]
+    
+    style A fill:#e1f5ff
+    style F fill:#fff3e0
+    style E fill:#f3e5f5
+    style J fill:#e8f5e9
+    style K fill:#fff9c4
 ```
 
 ## Limitations
