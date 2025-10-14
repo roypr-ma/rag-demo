@@ -63,12 +63,16 @@ yarn start    # Run compiled code
 
 **LLM Options:**
 - `tinyllama` (~637MB) - Faster but limited reasoning, good for testing only
-- `mistral` (~4.1GB) - Better reasoning than llama2
-- `mixtral` (~26GB) - Production-quality, best reasoning
+- `mistral` (~4.1GB) - Better reasoning than llama2, requires more RAM
+- `mixtral` (~26GB) - Production-quality, best reasoning, requires 16GB+ RAM
 
 **Embedding Options:**
 - `all-minilm` (~46MB) - Faster but less accurate
 - `mxbai-embed-large` (~670MB) - Higher accuracy
+
+**Note:** Larger models require more memory. You may need to increase Colima and docker-compose memory limits:
+- `mistral`: 10-12GB Colima recommended
+- `mixtral`: 16GB+ Colima required
 
 ### Changing Models
 
