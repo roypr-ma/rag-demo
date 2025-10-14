@@ -15,7 +15,7 @@ import { MemoryVectorStore } from "langchain/vectorstores/memory";
 // Connect to the Ollama instance
 const llm = new ChatOllama({
   baseUrl: "http://localhost:11434",
-  model: "tinyllama",
+  model: "llama2",
   temperature: 0,
 });
 

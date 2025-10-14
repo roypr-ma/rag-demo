@@ -1,19 +1,19 @@
 # RAG LangChain Project
 
-A Retrieval-Augmented Generation (RAG) system using LangChain, LangGraph, and Ollama. Loads web content, creates embeddings, and answers questions using local LLMs.
+A Retrieval-Augmented Generation (RAG) system using LangChain, LangGraph, and Ollama. Loads web content, creates embeddings, and answers questions using Llama2 (locally hosted).
 
 ## Prerequisites
 
 - **Node.js**: v22+
 - **Yarn**: Package manager
-- **Colima**: Docker runtime with 4GB+ memory (6-8GB recommended)
+- **Colima**: Docker runtime with 8GB memory (for llama2)
 
 ## Quick Start
 
 ```bash
 # 1. Ensure Colima has sufficient memory
 colima list
-colima stop && colima start --memory 6 --cpu 4
+colima stop && colima start --memory 8 --cpu 4
 
 # 2. Install dependencies
 yarn install
@@ -22,7 +22,7 @@ yarn install
 docker-compose up -d
 
 # 4. Pull models
-docker exec ollama-server ollama pull tinyllama
+docker exec ollama-server ollama pull llama2
 docker exec ollama-server ollama pull nomic-embed-text
 
 # 5. Build and run
@@ -49,37 +49,57 @@ yarn start    # Run compiled code
 3. **Embedding**: Converts chunks to 768-dimensional vectors using `nomic-embed-text`
 4. **Indexing**: Stores vectors in MemoryVectorStore for similarity search
 5. **Retrieval**: Finds most relevant chunks based on question similarity
-6. **Generation**: Uses LangChain RAG prompt + retrieved context to generate answer with `tinyllama`
+6. **Generation**: Uses LangChain RAG prompt + retrieved context to generate answer with `llama2`
 
 ## Configuration
 
 ### Models
 
-- **LLM**: `tinyllama` (~637MB) - Fast, lightweight 1B parameter model
+**Current Configuration:**
+- **LLM**: `llama2` (~3.8GB) - Good reasoning and balanced performance
 - **Embeddings**: `nomic-embed-text` (~274MB) - 768-dimensional embeddings
+
+### Alternative Models
+
+**LLM Options:**
+- `tinyllama` (~637MB) - Faster but limited reasoning, good for testing only
+- `mistral` (~4.1GB) - Better reasoning than llama2
+- `mixtral` (~26GB) - Production-quality, best reasoning
+
+**Embedding Options:**
+- `all-minilm` (~46MB) - Faster but less accurate
+- `mxbai-embed-large` (~670MB) - Higher accuracy
 
 ### Changing Models
 
+**1. Pull the model:**
+```bash
+docker exec ollama-server ollama pull mistral
+```
+
+**2. Update `index.ts` (line 18):**
 ```typescript
 const llm = new ChatOllama({
   baseUrl: "http://localhost:11434",
-  model: "llama2",  // Options: llama2, mistral, mixtral, etc.
+  model: "mistral",  // Change model here
   temperature: 0,
-});
-
-const embeddings = new OllamaEmbeddings({
-  baseUrl: "http://localhost:11434",
-  model: "all-minilm",  // Other embedding models
 });
 ```
 
-Available models: [ollama.com/library](https://ollama.com/library)
+**3. Rebuild:**
+```bash
+yarn build
+```
+
+Browse all models: [ollama.com/library](https://ollama.com/library)
 
 ## Troubleshooting
 
 ### Error: "model runner has unexpectedly stopped"
 
-**Problem:** Insufficient memory allocated to Colima. Running Ollama with multiple models requires at least 4GB (6-8GB recommended).
+**Problem:** Insufficient memory. Running Ollama with llama2 requires:
+- Colima: 8GB
+- Docker container: 8GB (configured in docker-compose.yml)
 
 **Solution:**
 
@@ -89,7 +109,7 @@ colima list
 
 # Restart Colima with more memory
 colima stop
-colima start --memory 6 --cpu 4
+colima start --memory 8 --cpu 4
 
 # Restart Ollama
 docker-compose down
@@ -130,7 +150,7 @@ graph TD
     
     H --> I[RAG Prompt]
     F --> I
-    I -->|Generate| J[LLM<br/>TinyLlama]
+    I -->|Generate| J[LLM<br/>Llama2]
     J --> K[Answer]
     
     style A fill:#e1f5ff
@@ -144,9 +164,9 @@ graph TD
 
 - **In-memory storage**: Vector store is cleared on restart (no persistence)
 - **Regeneration required**: Embeddings must be recreated each run
-- **Model constraints**: `tinyllama` has limited reasoning - consider using `llama2` or `mistral` for better results
-- **Context window**: Limited by model's maximum context length
+- **Context window**: Limited by model's maximum context length (~4K tokens for llama2)
 - **Out-of-domain queries**: May produce nonsensical answers for questions outside the indexed content
+- **Model performance**: For better results, consider upgrading to `mistral` or `mixtral`
 
 ## Tech Stack
 
