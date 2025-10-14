@@ -60,8 +60,6 @@ yarn start    # Run compiled code
 
 ### Changing Models
 
-Edit lines 19-28 in `index.ts`:
-
 ```typescript
 const llm = new ChatOllama({
   baseUrl: "http://localhost:11434",
