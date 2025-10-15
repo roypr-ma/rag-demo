@@ -2,6 +2,8 @@
 
 A Retrieval-Augmented Generation (RAG) system using LangChain, LangGraph, and Ollama. Loads web content, creates embeddings, and answers questions using Llama2 (locally hosted).
 
+> **Note:** This project is an implementation of the [LangChain RAG Tutorial](https://js.langchain.com/docs/tutorials/rag/).
+
 ## Prerequisites
 
 - **Node.js**: v22+
