@@ -394,7 +394,6 @@ curl -X POST http://localhost:11434/api/generate \
   - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
   - [Ollama Model Library](https://ollama.com/library)
 - **Concepts**:
-  - [RAG Concepts Guide](https://python.langchain.com/docs/use_cases/question_answering/)
   - [Chat History Management](https://js.langchain.com/docs/how_to/message_history/)
 
 ## License

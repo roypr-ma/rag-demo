@@ -23,6 +23,7 @@ import { MemoryVectorStore } from "langchain/vectorstores/memory";
 // CONFIGURATION & SETUP
 // ============================================================================
 
+console.log("\n" + "=".repeat(70));
 console.log("🔧 Initializing Part 2: RAG with Chat History (Chains)");
 console.log("=".repeat(70));
 
@@ -157,9 +158,9 @@ async function askQuestion(question: string) {
 // EXECUTION: CONVERSATIONAL INTERACTION
 // ============================================================================
 
-console.log("\n" + "🌟".repeat(35));
+console.log("\n" + "=".repeat(70));
 console.log("🚀 STARTING CONVERSATIONAL RAG SESSION");
-console.log("🌟".repeat(35));
+console.log("=".repeat(70));
 
 // First question
 await askQuestion("What is Task Decomposition?");
@@ -170,7 +171,9 @@ await askQuestion("What are common ways of doing it?");
 // Another follow-up (continues the conversation)
 await askQuestion("Can you give me specific examples?");
 
-console.log("\n" + "📊".repeat(35));
+console.log("\n" + "=".repeat(70));
+console.log("📊 SUMMARY");
+console.log("=".repeat(70));
 console.log(`💾 Total messages in history: ${chatHistory.length}`);
-console.log("📊".repeat(35));
+console.log("=".repeat(70));
 

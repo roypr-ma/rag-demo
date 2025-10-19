@@ -126,11 +126,11 @@ const startTime = Date.now();
 const result = await graph.invoke(inputs);
 const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-console.log("=".repeat(70));
+console.log("\n" + "=".repeat(70));
 console.log("📝 ANSWER:");
 console.log("=".repeat(70));
 console.log(result.answer);
-console.log("=".repeat(70));
+console.log("\n" + "=".repeat(70));
 console.log(`⏱️  Time: ${duration}s`);
 console.log("=".repeat(70));
 
