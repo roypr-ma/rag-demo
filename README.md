@@ -121,7 +121,6 @@ yarn start:chat
 - ✅ Maintains conversation context across multiple turns
 - ✅ Executes **exactly one** retrieval per question
 - ✅ Predictable chain execution flow
-- ✅ Fully typed with proper TypeScript types (no `any` casting)
 
 **Expected time:** ~180-240s (3 questions with full pipeline each)
 
@@ -300,7 +299,7 @@ Turn 3:
 docker exec ollama-server ollama pull mistral
 ```
 
-**2. Update the TypeScript files:**
+**2. Update the index.ts files:**
 ```typescript
 // In 1-basic-rag/index.ts and 2-chat-history/index.ts
 const llm = new ChatOllama({
