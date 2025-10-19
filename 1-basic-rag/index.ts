@@ -9,6 +9,13 @@ import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 
 // ============================================================================
+// PART 1: BASIC RAG (Retrieval-Augmented Generation)
+// ============================================================================
+// This is a basic RAG implementation without chat history.
+// It demonstrates the core RAG pipeline: Load → Split → Embed → Retrieve → Generate
+// ============================================================================
+
+// ============================================================================
 // CONFIGURATION & SETUP
 // ============================================================================
 
@@ -109,7 +116,7 @@ console.log("✓ RAG graph compiled");
 // ============================================================================
 
 console.log("\n" + "=".repeat(70));
-console.log("🚀 RUNNING RAG QUERY");
+console.log("🚀 RUNNING BASIC RAG QUERY (Part 1)");
 console.log("=".repeat(70));
 
 let inputs = { question: "What is Task Decomposition?" };
@@ -126,3 +133,4 @@ console.log(result.answer);
 console.log("=".repeat(70));
 console.log(`⏱️  Time: ${duration}s`);
 console.log("=".repeat(70));
+
