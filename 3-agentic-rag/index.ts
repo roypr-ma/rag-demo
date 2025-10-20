@@ -390,6 +390,7 @@ console.log(`\n❓ Question: "${question1}"`);
 
 const startTime1 = Date.now();
 let step = 0;
+let result1;
 
 for await (const output of await graph.stream({
   messages: [new HumanMessage(question1)],
@@ -397,14 +398,11 @@ for await (const output of await graph.stream({
   step++;
   const nodeName = Object.keys(output)[0];
   console.log(`\n[Step ${step}] Node: ${nodeName}`);
+  result1 = Object.values(output)[0]; // Capture the latest state
 }
 
-const result1 = await graph.invoke({
-  messages: [new HumanMessage(question1)],
-});
-
 const duration1 = ((Date.now() - startTime1) / 1000).toFixed(2);
-const finalAnswer1 = result1.messages[result1.messages.length - 1];
+const finalAnswer1 = result1!.messages[result1!.messages.length - 1];
 
 console.log("\n" + "=".repeat(70));
 console.log("📝 FINAL ANSWER:");
@@ -423,12 +421,16 @@ const question2 = "Hello! How are you?";
 console.log(`\n❓ Question: "${question2}"`);
 
 const startTime2 = Date.now();
-const result2 = await graph.invoke({
+let result2;
+
+for await (const output of await graph.stream({
   messages: [new HumanMessage(question2)],
-});
+})) {
+  result2 = Object.values(output)[0];
+}
 
 const duration2 = ((Date.now() - startTime2) / 1000).toFixed(2);
-const finalAnswer2 = result2.messages[result2.messages.length - 1];
+const finalAnswer2 = result2!.messages[result2!.messages.length - 1];
 
 console.log("\n" + "=".repeat(70));
 console.log("📝 FINAL ANSWER:");
@@ -447,12 +449,16 @@ const question3 = "What does Lilian Weng say about chain of thought prompting?";
 console.log(`\n❓ Question: "${question3}"`);
 
 const startTime3 = Date.now();
-const result3 = await graph.invoke({
+let result3;
+
+for await (const output of await graph.stream({
   messages: [new HumanMessage(question3)],
-});
+})) {
+  result3 = Object.values(output)[0];
+}
 
 const duration3 = ((Date.now() - startTime3) / 1000).toFixed(2);
-const finalAnswer3 = result3.messages[result3.messages.length - 1];
+const finalAnswer3 = result3!.messages[result3!.messages.length - 1];
 
 console.log("\n" + "=".repeat(70));
 console.log("📝 FINAL ANSWER:");
