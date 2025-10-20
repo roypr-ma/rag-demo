@@ -70,7 +70,6 @@ rag-langchain/
 │   └── index.ts              # Basic RAG implementation
 ├── 2-chat-history/
 │   ├── index-with-history.ts # Chains approach with history
-│   └── AGENT_NOTE.md         # Why agent approach isn't included
 ├── package.json
 ├── tsconfig.json
 ├── docker-compose.yml
@@ -148,10 +147,10 @@ yarn start:chat
 This diagram shows the complete RAG pipeline from data loading to answer generation.
 
 ```mermaid
-graph TB
-    subgraph "Data Preparation (One-Time Setup)"
+graph LR
+    subgraph "Data Preparation"
         A[📄 Web Page<br/>Lilian Weng Blog] -->|Load & Parse| B[📑 Raw Documents]
-        B -->|Split Text<br/>1000 chars, 200 overlap| C[📚 Text Chunks]
+        B -->|Split Text<br/>| C[📚 Text Chunks]
         C -->|Create Embeddings| D[🔢 Vector Embeddings]
         D -->|Store| E[(Vector Store)]
     end
@@ -178,22 +177,21 @@ graph TB
 
 **Key Components:**
 
-1. **CheerioWebBaseLoader**: Scrapes web content, extracting text from HTML
-2. **RecursiveCharacterTextSplitter**: Breaks text into overlapping chunks for better context preservation
-3. **OllamaEmbeddings**: Converts text to dense vector representations using local embeddings model
-4. **MemoryVectorStore**: Stores vectors for fast similarity search (in-memory, not persisted)
-5. **Similarity Search**: Finds most relevant chunks using cosine similarity
-6. **ChatOllama**: Generates natural language answer using retrieved context
+1. **Web Loader**: Scrapes and extracts text from HTML pages
+2. **Text Splitter**: Breaks content into overlapping chunks (1000 chars, 200 overlap)
+3. **Embeddings**: Converts text to vector representations for similarity search
+4. **Vector Store**: In-memory storage for fast similarity matching
+5. **LLM**: Generates answers using retrieved context and RAG prompt
 
 ### Part 2: Conversational RAG (Chains)
 
 This diagram shows how chat history is integrated into the RAG pipeline for multi-turn conversations.
 
 ```mermaid
-graph TB
+graph LR
     subgraph "Chat History Management"
         A[💬 Previous Conversation] 
-        B[🆕 New Question<br/>'What are common ways of doing it?']
+        B[🆕 New Question<br/>'What is Task Decomposition?']
     end
     
     subgraph "Question Contextualization"
@@ -234,25 +232,9 @@ graph TB
 
 **Key Components:**
 
-1. **createHistoryAwareRetriever**: Reformulates questions to be standalone using chat history
-   - Input: Current question + chat history
-   - Output: Reformulated standalone question
-   
-2. **Contextualize Prompt**: System message instructing LLM to reformulate question
-   - "Given chat history and latest question, make it standalone"
-   - Preserves original intent with full context
-
-3. **createStuffDocumentsChain**: Combines retrieved docs with prompt template
-   - Formats documents into context string
-   - Injects into prompt with history
-
-4. **createRetrievalChain**: Orchestrates the complete flow
-   - Question reformulation → Retrieval → Answer generation
-   - Maintains conversation state
-
-5. **Chat History Array**: `BaseMessage[]` containing alternating Human/AI messages
-   - Grows with each conversation turn
-   - Used for context in reformulation and answer generation
+1. **History-Aware Retriever**: Reformulates questions using chat context to create standalone queries
+2. **Retrieval Chain**: Orchestrates reformulation → retrieval → answer generation
+3. **Chat History**: Array of messages that grows with each turn, used for context in both reformulation and generation
 
 **Conversation Flow Example:**
 
