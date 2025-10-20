@@ -191,7 +191,7 @@ This diagram shows how chat history is integrated into the RAG pipeline for mult
 graph LR
     subgraph "Chat History Management"
         A[💬 Previous Conversation] 
-        B[🆕 New Question<br/>'What is Task Decomposition?']
+        B[🆕 New Question<br/>'What are common ways of doing it?']
     end
     
     subgraph "Question Contextualization"
