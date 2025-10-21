@@ -12,6 +12,12 @@ A progressive series of Retrieval-Augmented Generation (RAG) implementations usi
 | **[Part 2: Conversational RAG](2-chat-history/)** | Adds chat history (2 approaches) | **Chains**: Fixed 1 retrieval<br>**Agents**: Multiple retrievals | [Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history) |
 | **[Part 3: Agentic RAG](3-agentic-rag/)** | **ReAct framework** agent | Reason → Act → Observe → Learn | [Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) |
 
+## 🛠️ Prerequisites
+
+- **Node.js**: v22+
+- **Yarn**: Package manager
+- **Colima**: Docker runtime with 8GB+ memory
+
 ## 🚀 Quick Start
 
 ```bash
@@ -188,13 +194,6 @@ const llm = new ChatOllama({
 ```
 
 Browse models: [ollama.com/library](https://ollama.com/library)
-
-## 🛠️ Prerequisites
-
-- **Node.js**: v22+
-- **Yarn**: Package manager
-- **Colima**: Docker runtime with 8GB+ memory
-- **Docker**: For running Ollama
 
 ## 📊 Feature Comparison
 
