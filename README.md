@@ -239,11 +239,18 @@ curl -X POST http://localhost:11434/api/generate \
 
 ## 💡 Tech Stack
 
-- **[LangChain.js](https://js.langchain.com/)** - LLM application framework
-- **[LangGraph](https://langchain-ai.github.io/langgraph/)** - Graph-based workflow orchestration
-- **[Ollama](https://ollama.com/)** - Local LLM runtime
-- **[Llama2](https://ollama.com/library/llama2)** - Meta's open-source LLM
-- **[Cheerio](https://cheerio.js.org/)** - Web scraping
+### Framework & Orchestration
+- **[LangChain.js](https://js.langchain.com/)** - LLM application framework (chains, agents, retrievers)
+- **[LangGraph](https://langchain-ai.github.io/langgraph/)** - Graph-based workflow orchestration for agentic patterns
+
+### LLM Infrastructure
+- **[Ollama](https://ollama.com/)** - Local LLM runtime (via Docker)
+
+### Models
+- **[Llama2](https://ollama.com/library/llama2)** (~3.8GB) - Part 1, 2A: General-purpose reasoning
+- **[Qwen2.5:3b](https://ollama.com/library/qwen2.5)** (~2GB) - Part 2B: Lightweight tool-calling
+- **[Llama3.1](https://ollama.com/library/llama3.1)** (~4.7GB) - Part 3: Advanced tool-calling and instruction following
+- **[Nomic Embed Text](https://ollama.com/library/nomic-embed-text)** (~274MB) - 768-dimensional embeddings
 
 ## 📚 Resources
 
