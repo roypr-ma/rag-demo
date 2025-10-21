@@ -157,6 +157,22 @@ The Rewrite → Agent edge creates a self-correction loop that continues until r
 ✅ **Transparent**: Shows decision-making process  
 ✅ **Quality Control**: Won't generate answers from irrelevant docs
 
+**🎯 Why Document Grading Matters:**
+
+The grading step prevents hallucination that occurs in Part 2A:
+
+**Part 2A (no grading):**
+- Q: "What are common ways of doing task decomposition?"
+- Retrieved: 3 methods (LLM prompting, task instructions, human inputs)
+- Generated: 8 methods (added 5 hallucinated methods from general knowledge)
+
+**Part 3 (with grading):**
+- Retrieves documents → Grades relevance → Only generates if relevant
+- If docs don't fully answer, rewrites query and retrieves again
+- Strict adherence to retrieved context
+
+This validation step is the key difference between a simple RAG and an **agentic RAG with quality control**.
+
 ## Limitations
 
 ❌ **No Chat History**: Single-turn Q&A only (not conversational)  

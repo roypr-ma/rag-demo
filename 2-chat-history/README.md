@@ -256,6 +256,17 @@ async function askQuestion(question: string) {
 ❌ No validation of retrieved docs  
 ❌ No self-correction
 
+**⚠️ Important Limitation - Hallucination Risk:**
+
+Without document validation, the LLM may mix retrieved information with general knowledge:
+
+**Example from testing:**
+- Q: "What are common ways of doing task decomposition?"
+- Retrieved docs mention: LLM prompting, task-specific instructions, human inputs
+- Answer includes 8 methods (5 hallucinated): flowcharts, state machines, hierarchical structures, etc.
+
+The chains approach cannot detect or prevent this. For stricter grounding, use **Part 3 (ReAct)** which grades documents before generating answers.
+
 ### Agents
 ✅ Flexible retrieval (0-N times)  
 ✅ Handles complex questions  

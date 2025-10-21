@@ -44,7 +44,7 @@ const embeddings = new OllamaEmbeddings({
 // DATA LOADING & INDEXING
 // ============================================================================
 
-console.log("\n📥 Loading and indexing documents...");
+console.log("\n📥 Loading and indexing documents");
 const cheerioLoader = new CheerioWebBaseLoader(
   "https://lilianweng.github.io/posts/2023-06-23-agent/",
   { selector: "p" }
@@ -58,7 +58,7 @@ const textSplitter = new RecursiveCharacterTextSplitter({
 const splits = await textSplitter.splitDocuments(docs);
 const vectorStore = await MemoryVectorStore.fromDocuments(splits, embeddings);
 const retriever = vectorStore.asRetriever();
-console.log(`✓ Indexed ${splits.length} chunks`);
+console.log(`   ✓ Indexed ${splits.length} chunks\n`);
 
 // ============================================================================
 // HISTORY-AWARE RETRIEVER
@@ -88,7 +88,7 @@ const historyAwareRetriever = await createHistoryAwareRetriever({
 // ============================================================================
 // This chain answers questions using the retrieved context and chat history.
 
-console.log("\n💬 Setting up Q&A chain...");
+console.log("💬 Setting up Q&A chain");
 
 const qaSystemPrompt = `You are an assistant for question-answering tasks. \
 Use the following pieces of retrieved context to answer the question. \
@@ -113,7 +113,7 @@ const ragChain = await createRetrievalChain({
   combineDocsChain: questionAnswerChain,
 });
 
-console.log("✓ Ready\n");
+console.log("   ✓ Ready\n");
 
 // ============================================================================
 // STATEFUL CHAT HISTORY MANAGEMENT

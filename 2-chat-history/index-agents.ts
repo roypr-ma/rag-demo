@@ -38,7 +38,7 @@ const embeddings = new OllamaEmbeddings({
 // DATA LOADING & INDEXING
 // ============================================================================
 
-console.log("\n📥 Loading and indexing documents...");
+console.log("\n📥 Loading and indexing documents");
 
 const cheerioLoader = new CheerioWebBaseLoader(
   "https://lilianweng.github.io/posts/2023-06-23-agent/",
@@ -56,7 +56,7 @@ const splits = await textSplitter.splitDocuments(docs);
 const vectorStore = await MemoryVectorStore.fromDocuments(splits, embeddings);
 const retriever = vectorStore.asRetriever({ k: 3 });
 
-console.log(`✓ Indexed ${splits.length} chunks\n`);
+console.log(`   ✓ Indexed ${splits.length} chunks\n`);
 
 // ============================================================================
 // CREATE RETRIEVER TOOL (Following Tutorial)
@@ -77,7 +77,7 @@ const tools = [tool];
 // @ts-expect-error - Type inference issue with createReactAgent
 const agent = createReactAgent({ llm, tools });
 
-console.log("✓ Agent created\n");
+console.log("   ✓ Agent created\n");
 
 // ============================================================================
 // INTERACTIVE SESSION
@@ -114,10 +114,11 @@ async function askQuestion(question: string) {
       } else if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
         const toolCall = aiMsg.tool_calls[0];
         console.log(`🔧 Tool Call: ${toolCall.name}`);
-        console.log(`   Query: "${toolCall.args.query}"`);
+        console.log(`   → Query: "${toolCall.args.query}"`);
       }
     } else if (lastMessage._getType() === "tool") {
-      console.log(`📥 Tool Result: Retrieved ${lastMessage.content.toString().length} chars`);
+      console.log(`📥 Tool Result`);
+      console.log(`   → Retrieved ${lastMessage.content.toString().length} chars`);
     }
     console.log();
   }

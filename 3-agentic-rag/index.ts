@@ -31,7 +31,7 @@ const embeddings = new OllamaEmbeddings({
 // DATA LOADING & INDEXING
 // ============================================================================
 
-console.log("\n📥 Loading and indexing documents...");
+console.log("\n📥 Loading and indexing documents");
 
 const urls = [
   "https://lilianweng.github.io/posts/2023-06-23-agent/",
@@ -52,7 +52,7 @@ const docSplits = await textSplitter.splitDocuments(docs.flat());
 const vectorStore = await MemoryVectorStore.fromDocuments(docSplits, embeddings);
 const retriever = vectorStore.asRetriever({ k: 3 });
 
-console.log(`✓ Indexed ${docSplits.length} chunks from ${urls.length} blog posts\n`);
+console.log(`   ✓ Indexed ${docSplits.length} chunks from ${urls.length} blog posts\n`);
 
 // ============================================================================
 // CREATE RETRIEVER TOOL
@@ -84,7 +84,7 @@ const GraphState = Annotation.Root({
 async function agent(state: typeof GraphState.State) {
   const { messages } = state;
   
-  console.log("🤔 Agent reasoning...");
+  console.log("🤔 Agent reasoning");
   
   const systemPrompt = `You are an assistant for question-answering about LLM agents.
 
@@ -100,7 +100,7 @@ You have access to one tool:
   ]);
   
   if (response.tool_calls && response.tool_calls.length > 0) {
-    console.log(`   → Decision: Retrieve with query "${response.tool_calls[0].args.query}"`);
+    console.log(`   → Decision: Retrieve with query "${response.tool_calls[0].args.query}"\n`);
   } else {
     console.log(`   → Decision: Answer directly\n`);
   }
@@ -121,7 +121,7 @@ async function retrieve(state: typeof GraphState.State) {
   }
   
   const toolCall = lastMessage.tool_calls[0];
-  console.log(`📥 Retrieving documents...`);
+  console.log(`📥 Retrieving documents`);
   
   const docs = await retriever.invoke(toolCall.args.query);
   const content = docs.map(d => d.pageContent).join("\n\n");
@@ -154,7 +154,7 @@ async function gradeDocuments(state: typeof GraphState.State) {
     }
   }
   
-  console.log("📊 Grading document relevance...");
+  console.log("📊 Grading document relevance");
   
   const gradePrompt = `You are a grader assessing relevance of retrieved documents to a question.
 
@@ -189,7 +189,7 @@ Are these documents relevant to the question? Answer only: relevant or not relev
 async function rewriteQuery(state: typeof GraphState.State) {
   const { question } = state;
   
-  console.log("🔄 Rewriting query...");
+  console.log("🔄 Rewriting query");
   
   const rewritePrompt = `Rewrite this question to improve retrieval from a blog about LLM agents:
 
@@ -224,7 +224,7 @@ async function generate(state: typeof GraphState.State) {
     }
   }
   
-  console.log("✍️  Generating answer...\n");
+  console.log("✍️  Generating answer\n");
   
   const generatePrompt = `Answer the question using the context below. Be concise (2-3 sentences).
 
@@ -294,7 +294,7 @@ const workflow = new StateGraph(GraphState)
 
 const graph = workflow.compile();
 
-console.log("✓ ReAct graph compiled\n");
+console.log("   ✓ ReAct graph compiled\n");
 
 // ============================================================================
 // RUN QUESTIONS
