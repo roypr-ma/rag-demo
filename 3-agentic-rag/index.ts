@@ -6,7 +6,7 @@ import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { createRetrieverTool } from "langchain/tools/retriever";
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import { AIMessage, HumanMessage, BaseMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, BaseMessage, isToolMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { logSection, logQuestion, logDivider, logTime, logSeparator } from "../utils/logger.js";
 
@@ -19,7 +19,7 @@ import { logSection, logQuestion, logDivider, logTime, logSeparator } from "../u
 // Adaptations for Ollama:
 // - Uses llama3.1 instead of gpt-4o (better tool-calling than qwen2.5:3b)
 // - gradeDocuments: Text parsing instead of .withStructuredOutput (Ollama limitation)
-// - All other code follows tutorial structure exactly
+// - Context extraction: Search backwards for ToolMessage (grade adds AIMessage after retrieval)
 // ============================================================================
 
 logSection("🤖 Part 3: Agentic RAG with ReAct Framework");
@@ -137,7 +137,7 @@ async function gradeDocuments(state: typeof GraphState.State) {
   // We search backwards because messages array may have additional AI messages
   let context = "";
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i]._getType() === "tool") {
+    if (isToolMessage(messages[i])) {
       context = messages[i].content as string;
       break;
     }
@@ -205,7 +205,7 @@ async function generate(state: typeof GraphState.State) {
   // We search backwards because messages array includes grade decision after ToolMessage
   let context = "";
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i]._getType() === "tool") {
+    if (isToolMessage(messages[i])) {
       context = messages[i].content as string;
       break;
     }
@@ -308,5 +308,11 @@ async function askQuestion(question: string) {
 
 logSection("🚀 STARTING AGENTIC RAG SESSION");
 
+// Question 1: Clear, specific question - should retrieve and answer
 await askQuestion("What is Task Decomposition?");
+
+// Question 2: Vague question - may trigger rewrite loop for better results
+await askQuestion("Tell me about common approaches");
+
+// Question 3: Another specific question - should retrieve and answer
 await askQuestion("What are the types of agent memory?");

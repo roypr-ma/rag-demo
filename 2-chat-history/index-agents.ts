@@ -5,7 +5,7 @@ import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { createRetrieverTool } from "langchain/tools/retriever";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, BaseMessage, isAIMessage, isToolMessage } from "@langchain/core/messages";
 import { logSection, logQuestion, logDivider, logTime, logSeparator, logSummary } from "../utils/logger.js";
 
 // ============================================================================
@@ -105,7 +105,7 @@ async function askQuestion(question: string) {
     const lastMessage = step.messages[step.messages.length - 1];
     
     // Log each step
-    if (lastMessage._getType() === "ai") {
+    if (isAIMessage(lastMessage)) {
       const aiMsg = lastMessage as AIMessage;
       
       if (aiMsg.content) {
@@ -116,7 +116,7 @@ async function askQuestion(question: string) {
         console.log(`🔧 Tool Call: ${toolCall.name}`);
         console.log(`   → Query: "${toolCall.args.query}"`);
       }
-    } else if (lastMessage._getType() === "tool") {
+    } else if (isToolMessage(lastMessage)) {
       console.log(`📥 Tool Result`);
       console.log(`   → Retrieved ${lastMessage.content.toString().length} chars`);
     }
