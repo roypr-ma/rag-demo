@@ -70,38 +70,32 @@ Part 3 implements the **ReAct (Reasoning + Acting) pattern** through a continuou
 
 ```mermaid
 graph LR
-    subgraph "Initial Question"
-        Q[❓ User Question]
+    subgraph "1️⃣ REASON: Initial Decision"
+        Q[❓ User Question] --> D{🤔 Analyze Question<br/>🧠 LLM}
+        D -->|Simple/Greeting| R1[💬 Direct Response<br/>🧠 LLM]
+        D -->|Needs Information| D2[📝 Formulate Query<br/>🧠 LLM]
     end
     
-    subgraph "REASON: Decision Making"
-        Q --> D{🤔 Analyze Question}
-        D -->|Simple/Greeting| R1[💬 Direct Response]
-        D -->|Needs Information| D2[📝 Formulate Search Query]
-        RW[🔄 Query Rewriter] --> D
-    end
-    
-    subgraph "ACT: Retrieval"
-        D2 --> RET[🔍 Search Documents]
-        RET -->|Execute| VS[(📚 Vector Store<br/>3 Blog Posts)]
-        VS --> DOCS[📋 Retrieved Documents]
-    end
-    
-    subgraph "OBSERVE: Quality Check"
-        DOCS --> GRADE{📊 Grade Relevance}
-        GRADE -->|✅ Relevant| GOOD[✓ Documents are useful]
-        GRADE -->|❌ Not Relevant| BAD[✗ Documents inadequate]
-    end
-    
-    subgraph "ACT: Response"
-        GOOD --> GEN[✍️ Generate Answer<br/>with Context]
+    subgraph "2️⃣ ACT: Retrieval & Response"
+        D2 --> RET[🔍 Retriever Tool<br/>🔧 TOOL]
+        RET --> VS[(📚 Vector Store<br/>3 Blog Posts)]
+        VS --> DOCS[📋 Retrieved Docs]
         R1 --> END1[🎯 Final Answer]
-        GEN --> END1
+        GEN[✍️ Generate Answer<br/>🧠 LLM] --> END1
     end
     
-    subgraph "REASON: Self-Correction"
-        BAD --> RW
+    subgraph "3️⃣ OBSERVE: Evaluate Quality"
+        DOCS --> GRADE{📊 Grade Relevance<br/>🧠 LLM}
+        GRADE -->|✅ Relevant| GOOD[✓ Good Quality]
+        GRADE -->|❌ Not Relevant| BAD[✗ Poor Quality]
     end
+    
+    subgraph "4️⃣ REASON + ACT: Self-Correct"
+        BAD -->|Learn & Improve| RW[🔄 Rewrite Query<br/>🧠 LLM]
+        RW -->|Try Again| D
+    end
+    
+    GOOD --> GEN
     
     style D fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
     style GRADE fill:#fff3e0,stroke:#f57c00,stroke-width:2px
@@ -110,44 +104,21 @@ graph LR
     style GEN fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style END1 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style RW fill:#ffe0b2,stroke:#e64a19,stroke-width:2px
+    style BAD fill:#ffe0b2,stroke:#e64a19,stroke-width:2px
 ```
 
-**Key**: ReAct loop with conditional routing and self-correction. The agent can take shortcuts (direct response) or loop through retrieval → grading → rewriting until satisfied.
+**Legend**: **🧠 LLM** = LLM reasoning/generation | **🔧 TOOL** = External tool (invoked by LLM)
 
-### ReAct Framework Stages
+### The ReAct Loop
 
-The diagram shows the complete ReAct cycle with labeled subgraphs:
+The cycle flows: **1 → 2 → 3 → 4 (back to 1)** until documents are relevant:
 
-1. **REASON: Decision Making** 
-   - Analyzes the question to determine if retrieval is needed
-   - Simple questions get direct responses
-   - Complex questions trigger the retrieval process
-   - Receives rewritten queries from the self-correction loop
+1. **🧠 LLM** analyzes question → decides to retrieve or respond directly
+2. **🔧 TOOL** searches vector store (if needed) → returns documents
+3. **🧠 LLM** grades document relevance → routes to generation or self-correction
+4. **🧠 LLM** rewrites query (if documents poor) → loops back to step 1
 
-2. **ACT: Retrieval**
-   - Formulates and executes search queries
-   - Searches across 3 blog posts in the vector store
-   - Returns relevant document chunks
-
-3. **OBSERVE: Quality Check**
-   - Grades retrieved documents for relevance
-   - Evaluates if documents contain useful information
-   - Routes to either generation or self-correction
-
-4. **ACT: Response**
-   - Generates final answer using validated context
-   - Produces the output for the user
-
-5. **REASON: Self-Correction**
-   - Rewrites queries when documents aren't relevant
-   - Feeds improved query back to Decision Making
-   - Creates a feedback loop for continuous improvement
-
-### Decision Points
-
-- **Initial Analysis**: Should I retrieve information or respond directly?
-- **Quality Check**: Are the retrieved documents relevant and useful?
-- **Routing**: Generate answer with good documents, or rewrite query and try again?
+The agent continuously evaluates and improves until it obtains relevant documents to answer the question.
 
 ## Data Sources
 
