@@ -8,24 +8,26 @@ import { AIMessage, BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { logSection, logQuestion, logDivider, logTime, logSeparator, logSummary } from "../utils/logger.js";
 
 // ============================================================================
-// PART 2: RAG WITH CHAT HISTORY (Chains Approach)
+// PART 2A: RAG WITH CHAT HISTORY (Chains Approach)
 // ============================================================================
 // This implementation adds conversational memory to RAG using chains.
+// CHAINS approach: Predictable flow with exactly ONE retrieval per question.
 // It uses:
 // - createHistoryAwareRetriever: Reformulates questions based on chat history
 // - createRetrievalChain: Orchestrates retrieval and generation
 // - Chat history management: Maintains context across multiple turns
+// 
+// See index-agents.ts for the AGENTS approach (multiple retrievals per question)
 // ============================================================================
 
 // ============================================================================
 // CONFIGURATION & SETUP
 // ============================================================================
 
-console.log("\n" + "=".repeat(70));
-console.log("🔧 Initializing Part 2: RAG with Chat History (Chains)");
-console.log("=".repeat(70));
+logSection("🔧 Part 2A: RAG with Chat History (Chains Approach)");
 
 const llm = new ChatOllama({
   baseUrl: "http://localhost:11434",
@@ -42,35 +44,27 @@ const embeddings = new OllamaEmbeddings({
 // DATA LOADING & INDEXING
 // ============================================================================
 
-console.log("\n📥 Loading web content...");
+console.log("\n📥 Loading and indexing documents");
 const cheerioLoader = new CheerioWebBaseLoader(
   "https://lilianweng.github.io/posts/2023-06-23-agent/",
   { selector: "p" }
 );
 
 const docs = await cheerioLoader.load();
-console.log(`✓ Loaded ${docs.length} document(s)`);
-
-console.log("\n✂️  Splitting documents into chunks...");
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
   chunkOverlap: 200,
 });
 const splits = await textSplitter.splitDocuments(docs);
-console.log(`✓ Created ${splits.length} chunks`);
-
-console.log("\n📊 Creating vector store...");
 const vectorStore = await MemoryVectorStore.fromDocuments(splits, embeddings);
 const retriever = vectorStore.asRetriever();
-console.log("✓ Vector store ready");
+console.log(`   ✓ Indexed ${splits.length} chunks\n`);
 
 // ============================================================================
 // HISTORY-AWARE RETRIEVER
 // ============================================================================
 // This retriever reformulates the user's question based on chat history
 // before performing the search, ensuring context is preserved.
-
-console.log("\n🧠 Setting up history-aware retriever...");
 
 const contextualizeQSystemPrompt = `Given a chat history and the latest user question \
 which might reference context in the chat history, formulate a standalone question \
@@ -89,14 +83,12 @@ const historyAwareRetriever = await createHistoryAwareRetriever({
   rephrasePrompt: contextualizeQPrompt,
 });
 
-console.log("✓ History-aware retriever created");
-
 // ============================================================================
 // QUESTION ANSWERING CHAIN
 // ============================================================================
 // This chain answers questions using the retrieved context and chat history.
 
-console.log("\n💬 Setting up Q&A chain...");
+console.log("💬 Setting up Q&A chain");
 
 const qaSystemPrompt = `You are an assistant for question-answering tasks. \
 Use the following pieces of retrieved context to answer the question. \
@@ -121,7 +113,7 @@ const ragChain = await createRetrievalChain({
   combineDocsChain: questionAnswerChain,
 });
 
-console.log("✓ RAG chain with history ready");
+console.log("   ✓ Ready\n");
 
 // ============================================================================
 // STATEFUL CHAT HISTORY MANAGEMENT
@@ -130,22 +122,20 @@ console.log("✓ RAG chain with history ready");
 const chatHistory: BaseMessage[] = [];
 
 async function askQuestion(question: string) {
-  console.log("\n" + "=".repeat(70));
-  console.log(`👤 Human: ${question}`);
-  console.log("-".repeat(70));
+  logQuestion(question);
 
   const startTime = Date.now();
   const result = await ragChain.invoke({
     input: question,
     chat_history: chatHistory,
   });
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  const duration = (Date.now() - startTime) / 1000;
 
   const answer = result.answer;
   console.log(`🤖 AI: ${answer}`);
-  console.log("-".repeat(70));
-  console.log(`⏱️  Time: ${duration}s`);
-  console.log("=".repeat(70));
+  logDivider();
+  logTime(duration);
+  logSeparator();
 
   // Update chat history
   chatHistory.push(new HumanMessage(question));
@@ -158,9 +148,7 @@ async function askQuestion(question: string) {
 // EXECUTION: CONVERSATIONAL INTERACTION
 // ============================================================================
 
-console.log("\n" + "=".repeat(70));
-console.log("🚀 STARTING CONVERSATIONAL RAG SESSION");
-console.log("=".repeat(70));
+logSection("🚀 STARTING CONVERSATIONAL RAG SESSION");
 
 // First question
 await askQuestion("What is Task Decomposition?");
@@ -171,9 +159,5 @@ await askQuestion("What are common ways of doing it?");
 // Another follow-up (continues the conversation)
 await askQuestion("Can you give me specific examples?");
 
-console.log("\n" + "=".repeat(70));
-console.log("📊 SUMMARY");
-console.log("=".repeat(70));
-console.log(`💾 Total messages in history: ${chatHistory.length}`);
-console.log("=".repeat(70));
+logSummary(chatHistory.length);
 

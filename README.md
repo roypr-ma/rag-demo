@@ -1,47 +1,23 @@
 # RAG LangChain Project
 
-A Retrieval-Augmented Generation (RAG) system using LangChain, LangGraph, and Ollama. Loads web content, creates embeddings, and answers questions using Llama2 (locally hosted).
+A progressive series of Retrieval-Augmented Generation (RAG) implementations using LangChain, LangGraph, and Ollama.
 
-> **Note:** This project is an implementation of the [LangChain RAG Tutorial](https://js.langchain.com/docs/tutorials/rag/)
+> **Tutorial-Based Learning:** This project implements official LangChain tutorials with local Ollama models instead of OpenAI.
 
-## 📋 Table of Contents
+## 📚 Three Parts
 
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [Usage](#usage)
-  - [Part 1: Basic RAG](#part-1-basic-rag)
-  - [Part 2: Chat History with Chains](#part-2-chat-history-with-chains)
-- [How It Works](#how-it-works)
-- [Configuration](#configuration)
-- [Important Notes](#important-notes)
-- [Troubleshooting](#troubleshooting)
-- [Tech Stack](#tech-stack)
+| Part | Description | Key Features | Tutorial |
+|------|-------------|--------------|----------|
+| **[Part 1: Basic RAG](1-basic-rag/)** | Foundation RAG pipeline | Simple retrieval + generation | [Tutorial](https://js.langchain.com/docs/tutorials/rag/) |
+| **[Part 2: Conversational RAG](2-chat-history/)** | Adds chat history (2 approaches) | **Chains**: Fixed 1 retrieval<br>**Agents**: Multiple retrievals | [Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history) |
+| **[Part 3: Agentic RAG](3-agentic-rag/)** | **ReAct framework** agent | Reason → Act → Observe → Learn | [Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) |
 
-## Overview
-
-This project implements a Retrieval-Augmented Generation (RAG) system with progressive enhancements:
-
-**Part 1: Basic RAG** - Simple question-answering without conversation context
-- Load web content → Split into chunks → Create embeddings → Retrieve → Generate
-
-**Part 2: Conversational RAG (Chains)** - Maintains chat history for follow-up questions
-- Uses history-aware retriever to reformulate questions
-- Maintains conversation context across multiple turns
-- Executes predictable, single-retrieval pipeline per question
-
-## Prerequisites
-
-- **Node.js**: v22+
-- **Yarn**: Package manager
-- **Colima**: Docker runtime with 8GB memory (for llama2)
-
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # 1. Ensure Colima has sufficient memory
-colima list
+# 8GB minimum (for Part 1, 2)
+# 12GB recommended (if running Part 3 with llama3.1)
 colima stop && colima start --memory 8 --cpu 4
 
 # 2. Install dependencies
@@ -54,329 +30,244 @@ docker-compose up -d
 docker exec ollama-server ollama pull llama2
 docker exec ollama-server ollama pull nomic-embed-text
 
-# 5. Build and run
+# For Part 2B (Agents)
+docker exec ollama-server ollama pull qwen2.5:3b
+
+# For Part 3 (Agentic RAG) - better tool-calling and instruction following
+docker exec ollama-server ollama pull llama3.1
+
+# 5. Build
 yarn build
 
-# 6. Run
-yarn start:basic        # Basic RAG
-yarn start:chat         # Conversational RAG (chains)
+# 6. Run any part
+yarn start:basic        # Part 1: Basic RAG
+yarn start:chat         # Part 2: Conversational RAG (Chains)
+yarn start:chat:agents  # Part 2: Conversational RAG (Agents)
+yarn start:agentic      # Part 3: Agentic RAG
 ```
 
-## Project Structure
+## 📖 Project Structure
 
 ```
 rag-langchain/
 ├── 1-basic-rag/
-│   └── index.ts              # Basic RAG implementation
+│   ├── index.ts              # Basic RAG implementation
+│   └── README.md             # Detailed Part 1 docs
 ├── 2-chat-history/
-│   ├── index-with-history.ts # Chains approach with history
+│   ├── index-chains.ts       # Conversational RAG (Chains approach)
+│   ├── index-agents.ts       # Conversational RAG (Agents approach)
+│   └── README.md             # Detailed Part 2 docs
+├── 3-agentic-rag/
+│   ├── index.ts              # Agentic RAG with LangGraph
+│   └── README.md             # Detailed Part 3 docs
+├── utils/
+│   └── logger.ts             # Logging utilities
+├── docker-compose.yml        # Ollama service
 ├── package.json
-├── tsconfig.json
-├── docker-compose.yml
-└── README.md
+└── README.md                 # This file
 ```
 
-## Usage
+## 🎯 Learning Path
 
 ### Part 1: Basic RAG
-
-Simple RAG pipeline without conversational memory.
-
-```bash
-# Run Part 1
-yarn start:basic
-```
-
-**What it does:**
-1. Loads blog post content from Lilian Weng's "Autonomous Agents" article
-2. Splits content into 1000-character chunks with 200-character overlap
-3. Creates embeddings and indexes using nomic-embed-text
-4. Answers a single question: "What is Task Decomposition?"
-
-**Expected time:** ~60-80s
-
-**Example Output:**
-```
-❓ Question: "What is Task Decomposition?"
-🤖 AI: Task decomposition is the process of breaking down complex tasks...
-```
-
-### Part 2: Chat History with Chains
-
-Conversational RAG using history-aware retrieval chain.
+**Start here** to understand RAG fundamentals.
 
 ```bash
-# Run Part 2
-yarn start:chat
+yarn start:basic  # ~60-80s
 ```
 
-**What it does:**
-1. Asks: "What is Task Decomposition?"
-2. Follows up: "What are common ways of doing it?" (uses history to understand "it" refers to task decomposition)
-3. Follows up: "Can you give me specific examples?" (maintains full conversation context)
+**What you'll learn:**
+- Document loading and chunking
+- Vector embeddings and similarity search
+- Basic retrieval-augmented generation
+- LangGraph state management
 
-**Features:**
-- ✅ Automatically reformulates questions based on chat history
-- ✅ Maintains conversation context across multiple turns
-- ✅ Executes **exactly one** retrieval per question
-- ✅ Predictable chain execution flow
+📄 **[Read detailed Part 1 documentation →](1-basic-rag/README.md)**
 
-**Expected time:** ~180-240s (3 questions with full pipeline each)
+---
 
-**Example Conversation:**
+### Part 2: Conversational RAG
+**Add conversational memory** to handle follow-up questions. Implements **both approaches** from the tutorial:
+
+#### Approach A: Chains (Predictable)
+```bash
+yarn start:chat  # ~180-240s (3 turns)
 ```
-👤 Human: What is Task Decomposition?
-🤖 AI: Task decomposition involves breaking down complex tasks into smaller,
-      more manageable steps...
+- **Fixed execution**: Exactly ONE retrieval per question
+- **Predictable**: Same flow every time
+- **Fast**: ~60-80s per question
 
-👤 Human: What are common ways of doing it?
-      [System reformulates to: "What are common ways of doing task decomposition?"]
-🤖 AI: Based on our previous discussion, common methods include Chain of Thought (CoT),
-      simple prompting like "Steps for XYZ", and task-specific instructions...
-
-👤 Human: Can you give me specific examples?
-      [System reformulates with full context]
-🤖 AI: Specific examples include using prompts like "What are the subgoals for
-      achieving XYZ?" or providing task-specific instructions...
+#### Approach B: Agents (Flexible)
+```bash
+yarn start:chat:agents  # ~200-300s (varies)
 ```
+- **Dynamic execution**: 0 to N retrievals per question
+- **Adaptive**: Agent decides when it has enough info
+- **Thorough**: Gathers multiple pieces of information
+- **Requires**: Model with tool-calling support (qwen2.5, llama3.1, mistral)
 
-## How It Works
+**What you'll learn:**
+- Chat history management
+- History-aware retrieval
+- Question reformulation
+- Chain composition (Approach A)
+- Agent loops and decision-making (Approach B)
 
-### Part 1: Basic RAG Pipeline
-
-This diagram shows the complete RAG pipeline from data loading to answer generation.
-
-```mermaid
-graph LR
-    subgraph "Data Preparation"
-        A[📄 Web Page<br/>Lilian Weng Blog] -->|Load & Parse| B[📑 Raw Documents]
-        B -->|Split Text<br/>| C[📚 Text Chunks]
-        C -->|Create Embeddings| D[🔢 Vector Embeddings]
-        D -->|Store| E[(Vector Store)]
-    end
-    
-    subgraph "Query Processing (Runtime)"
-        F[❓ User Question<br/>'What is Task Decomposition?'] -->|Embed| G[🔍 Query Vector]
-        G -->|Similarity Search| E
-        E -->|Top K Results| H[📋 Retrieved Context]
-    end
-    
-    subgraph "Answer Generation"
-        F --> I[📝 RAG Prompt]
-        H --> I
-        I -->|Question + Context| J[🤖 Llama2]
-        J -->|Generate| K[✅ Answer]
-    end
-    
-    style A fill:#e1f5ff
-    style F fill:#fff3e0
-    style E fill:#f3e5f5
-    style J fill:#e8f5e9
-    style K fill:#fff9c4
+**Example:**
+```
+Q1: "What is Task Decomposition?"
+Q2: "What are common ways of doing it?"  ← Understands "it" = task decomposition
+Q3: "Compare the approaches"            ← Agent may retrieve multiple times
 ```
 
-**Key Components:**
+📄 **[Read detailed Part 2 documentation →](2-chat-history/README.md)**
 
-1. **Web Loader**: Scrapes and extracts text from HTML pages
-2. **Text Splitter**: Breaks content into overlapping chunks (1000 chars, 200 overlap)
-3. **Embeddings**: Converts text to vector representations for similarity search
-4. **Vector Store**: In-memory storage for fast similarity matching
-5. **LLM**: Generates answers using retrieved context and RAG prompt
+---
 
-### Part 2: Conversational RAG (Chains)
+### Part 3: Agentic RAG (ReAct Framework)
+**Build a ReAct agent** that reasons, acts, observes, and learns.
 
-This diagram shows how chat history is integrated into the RAG pipeline for multi-turn conversations.
-
-```mermaid
-graph LR
-    subgraph "Chat History Management"
-        A[💬 Previous Conversation] 
-        B[🆕 New Question<br/>'What are common ways of doing it?']
-    end
-    
-    subgraph "Question Contextualization"
-        A --> C[🔄 History-Aware Retriever]
-        B --> C
-        C -->|Reformulate| D[🤖 Llama2]
-        D --> E[📝 Standalone Question<br/>'What are common ways of<br/>doing task decomposition?']
-    end
-    
-    subgraph "Document Retrieval"
-        E -->|Embed & Search| F[(Vector Store)]
-        F -->|Top K Results| G[📋 Retrieved Context]
-    end
-    
-    subgraph "Answer Generation"
-        G --> H[📝 QA Prompt]
-        A -->|History| H
-        B -->|Question| H
-        H -->|Combine Docs Chain| I[🤖 Llama2]
-        I --> J[✅ Answer]
-    end
-    
-    subgraph "State Update"
-        B --> K[💾 Update History]
-        J --> K
-        K --> L[📚 Updated History]
-    end
-    
-    L -.->|Next Turn| A
-    
-    style A fill:#e3f2fd
-    style B fill:#fff3e0
-    style E fill:#e8f5e9
-    style F fill:#f3e5f5
-    style J fill:#fff9c4
-    style L fill:#fce4ec
+**⚠️ Prerequisites:** Pull the required model first:
+```bash
+docker exec ollama-server ollama pull llama3.1  # ~4.7GB
 ```
 
-**Key Components:**
-
-1. **History-Aware Retriever**: Reformulates questions using chat context to create standalone queries
-2. **Retrieval Chain**: Orchestrates reformulation → retrieval → answer generation
-3. **Chat History**: Array of messages that grows with each turn, used for context in both reformulation and generation
-
-**Conversation Flow Example:**
-
-```
-Turn 1:
-  Input: "What is Task Decomposition?"
-  Reformulated: "What is Task Decomposition?" (no change needed)
-  Answer: "Breaking down complex tasks into smaller steps..."
-
-Turn 2:
-  Input: "What are common ways of doing it?"
-  Reformulated: "What are common ways of doing task decomposition?"
-  Answer: "Common methods include Chain of Thought, prompting..."
-
-Turn 3:
-  Input: "Can you give examples?"
-  Reformulated: "Can you give examples of task decomposition methods?"
-  Answer: "Examples include: 1) 'Steps for XYZ'..."
+**Run:**
+```bash
+yarn start:agentic  # ~90-180s
 ```
 
-## Configuration
+- **ReAct framework** (Reasoning + Acting pattern)
+- Document relevance grading after retrieval
+- Query rewriting based on observations
+- Self-correction through continuous evaluation
+- **Requires**: `llama3.1` for better tool-calling and instruction following
+
+**The ReAct Cycle:**
+1. **Reason**: "Should I retrieve information?"
+2. **Act**: Execute retrieval tool
+3. **Observe**: Grade document quality
+4. **Learn**: Rewrite query if needed, try again
+
+**Why ReAct?** Unlike Part 2B (simple agent), Part 3 validates retrieved documents and self-corrects with query rewriting.
+
+📄 **[Read detailed Part 3 documentation →](3-agentic-rag/README.md)**
+
+---
+
+## 🔧 Configuration
 
 ### Models
 
 **Current Configuration:**
-- **LLM**: `llama2` (~3.8GB) - Good reasoning and balanced performance
+- **LLM (Part 1, 2A)**: `llama2` (~3.8GB) - Good reasoning, balanced performance
+- **LLM (Part 2B)**: `qwen2.5:3b` (~2GB) - Tool-calling support
+- **LLM (Part 3)**: `llama3.1` (~4.7GB, requires 8GB RAM) - Better tool-calling and instruction following
 - **Embeddings**: `nomic-embed-text` (~274MB) - 768-dimensional vectors
+
+**💡 Note:** Part 3 uses a larger model (`llama3.1`) for more reliable document grading and query rewriting.
 
 ### Alternative Models
 
-**LLM Options:**
-- `tinyllama` (~637MB) - Fast but limited reasoning, good for testing
-- `mistral` (~4.1GB) - Better reasoning than llama2
-- `mixtral` (~26GB) - Production-quality, best reasoning (requires 16GB+ RAM)
-
-**Embedding Options:**
-- `all-minilm` (~46MB) - Faster but less accurate
-- `mxbai-embed-large` (~670MB) - Higher accuracy
-
-### Changing Models
-
-**1. Pull the model:**
+**For faster testing:**
 ```bash
-docker exec ollama-server ollama pull mistral
+docker exec ollama-server ollama pull tinyllama  # ~637MB, much faster
 ```
 
-**2. Update the index.ts files:**
+**For better quality:**
+```bash
+docker exec ollama-server ollama pull mistral  # ~4.1GB, better reasoning
+```
+
+Then update the model name in the respective `index.ts` file:
 ```typescript
-// In 1-basic-rag/index.ts and 2-chat-history/index.ts
 const llm = new ChatOllama({
-  baseUrl: "http://localhost:11434",
-  model: "mistral",  // Change here
-  temperature: 0,
+  model: "mistral",  // or "tinyllama"
+  // ...
 });
 ```
 
-**3. Rebuild:**
-```bash
-yarn build
-```
+Browse models: [ollama.com/library](https://ollama.com/library)
 
-Browse all models: [ollama.com/library](https://ollama.com/library)
+## 🛠️ Prerequisites
 
-## Troubleshooting
+- **Node.js**: v22+
+- **Yarn**: Package manager
+- **Colima**: Docker runtime with 8GB+ memory
+- **Docker**: For running Ollama
 
-### Error: "model runner has unexpectedly stopped"
+## 📊 Feature Comparison
 
-**Problem:** Insufficient memory. llama2 requires:
-- Colima: 8GB minimum
-- Docker container: 8GB
+| Feature | Part 1 | Part 2 | Part 3 |
+|---------|:------:|:------:|:------:|
+| **Basic Retrieval** | ✅ | ✅ | ✅ |
+| **Chat History** | ❌ | ✅ | ❌ |
+| **Question Reformulation** | ❌ | ✅ | ✅ |
+| **Decision Making** | ❌ | ❌ | ✅ |
+| **Document Grading** | ❌ | ❌ | ✅ |
+| **Self-Correction** | ❌ | ❌ | ✅ |
+| **Multi-Document Search** | ❌ | ❌ | ✅ |
+| **Conditional Logic** | ❌ | ❌ | ✅ |
+
+## 🐛 Troubleshooting
+
+### "model runner has unexpectedly stopped"
+
+**Cause:** Insufficient memory for llama2.
 
 **Solution:**
-
 ```bash
-# Check current memory
-colima list
-
-# Restart with more memory
-colima stop
-colima start --memory 8 --cpu 4
-
-# Restart Ollama
-docker-compose down
-docker-compose up -d
+colima list  # Check current memory
+colima stop && colima start --memory 8 --cpu 4
+docker-compose restart
 ```
 
 ### Slow Performance
 
-**Issue:** Long wait times between steps
-
 **Solutions:**
-1. Use a smaller model for testing: `tinyllama` (~30s total)
+1. Use `tinyllama` for testing (much faster)
 2. Reduce chunk size in text splitters
-3. Increase CPU/memory allocation to Colima
+3. Allocate more CPU/memory to Colima
 
-### Chat History Not Working
+### Memory Issues During Long Runs
 
-**Issue:** Part 2 doesn't seem to use previous context
-
-**Check:**
-1. Verify the reformulated question in logs - it should reference previous context
-2. Ensure chat history is being properly maintained between invocations
-3. Try more explicit follow-up questions
-
-### Memory Issues with Multiple Runs
-
-Part 2 runs multiple queries sequentially. To free memory between runs:
-
+Unload models between runs:
 ```bash
-# Unload models from Ollama
 curl -X POST http://localhost:11434/api/generate \
   -d '{"model": "llama2", "keep_alive": 0}'
 ```
 
-## Tech Stack
+## 💡 Tech Stack
 
-- **[LangChain.js](https://js.langchain.com/)** - LLM application framework
-- **[LangGraph](https://langchain-ai.github.io/langgraph/)** - Graph-based workflow orchestration  
-- **[Ollama](https://ollama.com/)** - Local LLM runtime
-- **[Llama2](https://ollama.com/library/llama2)** - Meta's open-source language model
-- **[Cheerio](https://cheerio.js.org/)** - Web scraping library
+### Framework & Orchestration
+- **[LangChain.js](https://js.langchain.com/)** - LLM application framework (chains, agents, retrievers)
+- **[LangGraph](https://langchain-ai.github.io/langgraph/)** - Graph-based workflow orchestration for agentic patterns
 
-## Limitations
+### LLM Infrastructure
+- **[Ollama](https://ollama.com/)** - Local LLM runtime (via Docker)
 
-- **In-memory storage**: Vector store doesn't persist between runs
-- **No streaming**: Responses are generated fully before display
-- **Context window**: Limited by model's maximum context length (~4K tokens for llama2)
-- **Local only**: Requires local Ollama instance running
-- **Model size**: Larger models need more memory
+### Models
+- **[Llama2](https://ollama.com/library/llama2)** (~3.8GB) - Part 1, 2A: General-purpose reasoning
+- **[Qwen2.5:3b](https://ollama.com/library/qwen2.5)** (~2GB) - Part 2B: Lightweight tool-calling
+- **[Llama3.1](https://ollama.com/library/llama3.1)** (~4.7GB) - Part 3: Advanced tool-calling and instruction following
+- **[Nomic Embed Text](https://ollama.com/library/nomic-embed-text)** (~274MB) - 768-dimensional embeddings
 
-## Resources
+## 📚 Resources
 
-- **LangChain Tutorials**:
-  - [Part 1: Build a RAG App](https://js.langchain.com/docs/tutorials/rag/)
-  - [Part 2: Q&A with Chat History](https://js.langchain.com/docs/tutorials/qa_chat_history)
-- **Documentation**:
-  - [LangChain JS Docs](https://js.langchain.com/docs/)
-  - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-  - [Ollama Model Library](https://ollama.com/library)
-- **Concepts**:
-  - [Chat History Management](https://js.langchain.com/docs/how_to/message_history/)
+### Official Tutorials
+- [LangChain RAG Tutorial](https://js.langchain.com/docs/tutorials/rag/)
+- [Q&A with Chat History](https://js.langchain.com/docs/tutorials/qa_chat_history)
+- [Agentic RAG with LangGraph](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag)
 
-## License
+### Documentation
+- [LangChain JS Docs](https://js.langchain.com/docs/)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [Ollama Model Library](https://ollama.com/library)
+
+## 📝 License
 
 MIT
+
+---
+
+**Ready to start?** Begin with [Part 1: Basic RAG →](1-basic-rag/README.md)

@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "start:basic": "tsc && node dist/1-basic-rag/index.js",
-    "start:chat": "tsc && node dist/2-chat-history/index.js"
+    "start:chat": "tsc && node dist/2-chat-history/index-chains.js",
+    "start:chat:agents": "tsc && node dist/2-chat-history/index-agents.js",
+    "start:agentic": "tsc && node dist/3-agentic-rag/index.js"
   },
   "dependencies": {
     "@langchain/community": "^0.3.57",
