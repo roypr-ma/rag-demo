@@ -36,16 +36,19 @@ yarn start:agentic  # ~90-180s
 
 ## What It Does
 
-Answers two questions using ReAct loop:
-1. "What is Task Decomposition?"
-2. "What are the types of agent memory?"
+Demonstrates ReAct decision-making with three domain questions:
 
-For each question, the agent:
-- Decides whether to retrieve or answer directly
-- Retrieves documents if needed
-- Grades document relevance
-- Rewrites query and retrieves again if not relevant
-- Generates answer once it has good documents
+1. **"What is Task Decomposition?"** - Clear question → retrieve → grade → generate
+2. **"Tell me about common approaches"** - Vague question → may trigger rewrite loop
+3. **"What are the types of agent memory?"** - Another clear question → standard flow
+
+For each question, the agent autonomously:
+- **Retrieves** relevant documents
+- **Grades** document relevance (✅ relevant or ❌ not relevant)
+- **Rewrites** query and retrieves again if not relevant
+- **Generates** answer once it has good documents
+
+This showcases the core ReAct capabilities: **validation** (grading) and **self-correction** (rewriting).
 
 ## Architecture
 
