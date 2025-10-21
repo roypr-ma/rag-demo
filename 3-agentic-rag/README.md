@@ -64,70 +64,90 @@ Part 3 implements the **ReAct (Reasoning + Acting) pattern** through a continuou
    └─→ No: Rewrite query (back to step 2)
 ```
 
-### Why This Is True ReAct
-
-| ReAct Component | Implementation in Part 3 |
-|-----------------|--------------------------|
-| **Reasoning** | Agent decides: retrieve vs respond, relevant vs rewrite |
-| **Acting** | Executes retrieval tool, generates answers |
-| **Observing** | Grades document relevance after each retrieval |
-| **Iterating** | Loops back to rewrite query if documents aren't good |
-
-**Key Insight:** Unlike Part 1 (fixed pipeline) or Part 2 (iterative retrieval), Part 3 **reasons before each action** and **validates after each action** - the hallmark of ReAct.
-
-### Part 2B vs Part 3: Agent vs ReAct
-
-| Feature | Part 2B: Agent | Part 3: ReAct Agent |
-|---------|----------------|---------------------|
-| **Pattern** | Agent with tools | ReAct framework |
-| **Reasoning** | "Should I retrieve more?" | "Should I retrieve? Are results good? What should I do?" |
-| **Acting** | Retrieves documents | Retrieves + validates + rewrites |
-| **Observing** | ❌ No evaluation | ✅ Grades document quality |
-| **Learning** | ❌ No adjustment | ✅ Rewrites query based on observation |
-| **Loop** | Retrieve → Retrieve → ... | Reason → Act → Observe → Reason → ... |
-
-**Bottom Line:** Part 2B is an agent that *can* use tools multiple times. Part 3 is a **ReAct agent** that *reasons, acts, observes, and learns* in a continuous cycle.
-
 ## Architecture
 
 ### Graph Structure (ReAct Flow)
 
 ```mermaid
-graph TD
-    START[🚀 START] --> A[🤔 generateQueryOrRespond<br/>REASON]
+graph LR
+    subgraph "Initial Question"
+        Q[❓ User Question]
+    end
     
-    A -->|No retrieval needed| END1[✅ END]
-    A -->|Needs information| B[🔍 retrieve<br/>ACT]
+    subgraph "REASON: Decision Making"
+        Q --> D{🤔 Analyze Question}
+        D -->|Simple/Greeting| R1[💬 Direct Response]
+        D -->|Needs Information| D2[📝 Formulate Search Query]
+        RW[🔄 Query Rewriter] --> D
+    end
     
-    B --> C[📊 gradeDocuments<br/>OBSERVE]
+    subgraph "ACT: Retrieval"
+        D2 --> RET[🔍 Search Documents]
+        RET -->|Execute| VS[(📚 Vector Store<br/>3 Blog Posts)]
+        VS --> DOCS[📋 Retrieved Documents]
+    end
     
-    C -->|Documents relevant| D[✍️ generate<br/>ACT]
-    C -->|Not relevant| E[🔄 rewrite<br/>REASON + ACT]
+    subgraph "OBSERVE: Quality Check"
+        DOCS --> GRADE{📊 Grade Relevance}
+        GRADE -->|✅ Relevant| GOOD[✓ Documents are useful]
+        GRADE -->|❌ Not Relevant| BAD[✗ Documents inadequate]
+    end
     
-    D --> END2[✅ END]
-    E --> A
+    subgraph "ACT: Response"
+        GOOD --> GEN[✍️ Generate Answer<br/>with Context]
+        R1 --> END1[🎯 Final Answer]
+        GEN --> END1
+    end
     
-    style A fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
-    style B fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style C fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style E fill:#ffe0b2,stroke:#e64a19,stroke-width:2px
+    subgraph "REASON: Self-Correction"
+        BAD --> RW
+    end
+    
+    style D fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style GRADE fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style VS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style RET fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style GEN fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style END1 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style RW fill:#ffe0b2,stroke:#e64a19,stroke-width:2px
 ```
 
-**Key**: Conditional graph with feedback loops for self-correction.
+**Key**: ReAct loop with conditional routing and self-correction. The agent can take shortcuts (direct response) or loop through retrieval → grading → rewriting until satisfied.
 
-### Nodes (Mapped to ReAct)
+### ReAct Framework Stages
 
-1. **generateQueryOrRespond** (Reason): LLM decides whether to retrieve or respond
-2. **retrieve** (Act): Executes the vector store retrieval tool
-3. **gradeDocuments** (Observe): LLM evaluates document relevance
-4. **rewrite** (Reason + Act): LLM improves query and tries again
-5. **generate** (Act): Creates final answer using validated context
+The diagram shows the complete ReAct cycle with labeled subgraphs:
 
-### Conditional Edges (ReAct Decisions)
+1. **REASON: Decision Making** 
+   - Analyzes the question to determine if retrieval is needed
+   - Simple questions get direct responses
+   - Complex questions trigger the retrieval process
+   - Receives rewritten queries from the self-correction loop
 
-- `shouldRetrieve()`: Reasoning step - "Do I need information?"
-- `checkRelevance()`: Observation step - "Is this information good?"
+2. **ACT: Retrieval**
+   - Formulates and executes search queries
+   - Searches across 3 blog posts in the vector store
+   - Returns relevant document chunks
+
+3. **OBSERVE: Quality Check**
+   - Grades retrieved documents for relevance
+   - Evaluates if documents contain useful information
+   - Routes to either generation or self-correction
+
+4. **ACT: Response**
+   - Generates final answer using validated context
+   - Produces the output for the user
+
+5. **REASON: Self-Correction**
+   - Rewrites queries when documents aren't relevant
+   - Feeds improved query back to Decision Making
+   - Creates a feedback loop for continuous improvement
+
+### Decision Points
+
+- **Initial Analysis**: Should I retrieve information or respond directly?
+- **Quality Check**: Are the retrieved documents relevant and useful?
+- **Routing**: Generate answer with good documents, or rewrite query and try again?
 
 ## Data Sources
 
