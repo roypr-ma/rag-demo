@@ -1,30 +1,53 @@
 # Part 2: Conversational RAG with Chat History
 
-A RAG system that maintains conversation context across multiple turns using LangChain's retrieval chains.
+A RAG system that maintains conversation context across multiple turns. This part implements **both approaches** from the [LangChain tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history/):
 
-## Overview
+1. **Chains Approach** - Predictable, one retrieval per question
+2. **Agents Approach** - Flexible, multiple retrievals per question
 
-This implementation adds conversational capabilities to RAG:
-- **History-Aware Retrieval**: Reformulates questions based on chat history
-- **Context Preservation**: Maintains conversation state across multiple turns
-- **Chain-Based Architecture**: Uses LangChain's pre-built chains for reliable execution
+## Two Approaches
+
+### Approach A: Chains (index-chains.ts)
+- **Predictable execution**: Exactly ONE retrieval step per question
+- **History-aware retrieval**: Reformulates questions based on chat history
+- **Uses**: `createHistoryAwareRetriever` and `createRetrievalChain`
+- **Best for**: Standard Q&A where one retrieval is sufficient
+
+### Approach B: Agents (index-agents.ts)
+- **Flexible execution**: Agent can make MULTIPLE retrieval calls per question
+- **Iterative reasoning**: Agent decides when it has enough information
+- **Uses**: LangGraph agent with tool calling loop
+- **Best for**: Complex questions requiring multiple pieces of information
 
 ## Running Part 2
 
 ```bash
-# From project root
+# Chains approach (one retrieval per question)
 yarn start:chat
+
+# Agents approach (multiple retrievals per question)
+yarn start:chat:agents
 ```
 
-## What It Does
+## What They Do
 
-Runs a 3-turn conversation demonstrating context awareness:
+### Chains Approach (index-chains.ts)
+Runs a 3-turn conversation with **one retrieval** per question:
 
 1. **Turn 1**: "What is Task Decomposition?"
 2. **Turn 2**: "What are common ways of doing it?" (understands "it" = task decomposition)
 3. **Turn 3**: "Can you give me specific examples?" (maintains full conversation context)
 
 **Expected time:** ~180-240s (3 questions × ~60-80s each)
+
+### Agents Approach (index-agents.ts)
+Runs a 3-turn conversation where agent can make **multiple retrievals**:
+
+1. **Turn 1**: "What is Task Decomposition?" (may retrieve once)
+2. **Turn 2**: "What are common ways of doing it?" (may retrieve once)
+3. **Turn 3**: "Can you compare the different approaches and tell me which one is most commonly used?" (may retrieve multiple times to gather comprehensive information)
+
+**Expected time:** ~200-300s (varies based on agent decisions)
 
 ## Example Conversation
 
@@ -65,6 +88,8 @@ Runs a 3-turn conversation demonstrating context awareness:
 
 ## Architecture
 
+### Chains Approach (Fixed Pipeline)
+
 ```mermaid
 graph LR
     subgraph "Chat History"
@@ -101,9 +126,44 @@ graph LR
     L -.->|Next Turn| A
 ```
 
+**Key**: Linear flow, exactly ONE retrieval per question.
+
+---
+
+### Agents Approach (Iterative Loop)
+
+```mermaid
+graph TD
+    A[🆕 Question + 💬 Chat History] --> B{🤖 Agent Node}
+    
+    B -->|Needs Info| C[📝 Generate Tool Call]
+    C --> D[🔍 Retrieve Node]
+    D -->|Execute Search| E[(Vector Store)]
+    E --> F[📋 Retrieved Docs]
+    F --> G[💬 Add to Messages]
+    G --> B
+    
+    B -->|Has Enough Info| H[✅ Final Answer]
+    
+    H --> I[💾 Update Chat History]
+    I --> J[📚 Ready for Next Turn]
+    
+    style B fill:#f9f,stroke:#333,stroke-width:4px
+    style D fill:#bbf,stroke:#333,stroke-width:2px
+    style G stroke-dasharray: 5 5
+```
+
+**Key**: Agent can loop through retrieval 0-N times until it decides it has enough information.
+
+**Major Difference**: 
+- **Chains**: `Question → Reformulate → Retrieve (1x) → Answer`
+- **Agents**: `Question → Agent → [Retrieve → Agent]* → Answer` (loop repeats as needed)
+
 ## Key Components
 
-### 1. History-Aware Retriever
+### Chains Approach (index-chains.ts)
+
+#### 1. History-Aware Retriever
 
 Reformulates questions based on chat history before retrieving documents.
 
@@ -129,7 +189,7 @@ const historyAwareRetriever = await createHistoryAwareRetriever({
 - Reformulated: "What are common ways of doing task decomposition?"
 - Retrieval now works correctly without chat context
 
-### 2. Question-Answering Chain
+#### 2. Question-Answering Chain
 
 Generates answers using retrieved documents and chat history.
 
@@ -149,7 +209,7 @@ const questionAnswerChain = await createStuffDocumentsChain({
 **System Prompt:**
 > "You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise."
 
-### 3. Retrieval Chain
+#### 3. Retrieval Chain
 
 Orchestrates the complete RAG pipeline with history.
 
@@ -165,7 +225,7 @@ Execution flow:
 2. Retrieve documents using reformulated question
 3. Generate answer using documents + history + original question
 
-### 4. Chat History Management
+#### 4. Chat History Management
 
 ```typescript
 const chatHistory: BaseMessage[] = [];
@@ -190,6 +250,72 @@ Turn 1: [HumanMessage("What is Task Decomposition?"), AIMessage("Task decomposit
 Turn 2: [...previous..., HumanMessage("What are common ways?"), AIMessage("Common methods include...")]
 Turn 3: [...all previous..., HumanMessage("Give examples?"), AIMessage("Examples include...")]
 ```
+
+### Agents Approach (index-agents.ts)
+
+#### 1. Agent Node
+Makes autonomous decisions about retrieval:
+
+```typescript
+async function agent(state) {
+  const systemPrompt = `You have access to a retrieval tool.
+  If you need information, respond with:
+  TOOL_CALL: retrieve
+  QUERY: <your search query>
+  
+  You can call the tool multiple times. When you have enough info, answer.`;
+  
+  const response = await llm.invoke([systemPrompt, ...messages]);
+  
+  if (response.content.includes("TOOL_CALL: retrieve")) {
+    // Agent wants to retrieve
+    return { messages: [AIMessage with tool_call] };
+  } else {
+    // Agent has final answer
+    return { messages: [response] };
+  }
+}
+```
+
+**Key Features:**
+- Examines full chat history for context
+- Decides when to retrieve (0, 1, or multiple times)
+- Loops until satisfied with information gathered
+
+#### 2. Retrieve Node
+Executes retrieval when agent decides to:
+
+```typescript
+async function executeRetrieval(state) {
+  const query = lastMessage.additional_kwargs.tool_query;
+  const docs = await retriever.invoke(query);
+  const context = docs.map(doc => doc.pageContent).join("\n\n");
+  
+  return { messages: [ToolMessage(context)] };
+}
+```
+
+#### 3. Graph with Conditional Routing
+
+```typescript
+const graph = new StateGraph(AgentState)
+  .addNode("agent", agent)
+  .addNode("retrieve", executeRetrieval)
+  .addEdge(START, "agent")
+  .addConditionalEdges("agent", shouldContinue, {
+    retrieve: "retrieve",  // If tool call
+    end: END,             // If final answer
+  })
+  .addEdge("retrieve", "agent")  // Back to agent after retrieval
+  .compile();
+```
+
+**Agent Loop:**
+```
+START → Agent → (needs info?) → Retrieve → Agent → (needs more?) → Retrieve → Agent → (satisfied) → END
+```
+
+The agent keeps looping through retrieval until it has enough information to answer completely.
 
 ## Implementation Details
 
@@ -248,34 +374,63 @@ Update Chat History
 - **Chunk Size**: 1000 characters
 - **Chunk Overlap**: 200 characters
 - **Temperature**: 0 (deterministic)
-- **Max Response**: 3 sentences (via system prompt)
+- **Max Response**: 3 sentences (chains) / varies (agents)
 
-## Key Differences from Part 1
+## Comparison
 
-| Feature | Part 1 | Part 2 |
+### Part 2 Approaches Compared
+
+| Feature | Chains (2A) | Agents (2B) |
+|---------|-------------|-------------|
+| **Retrievals per question** | Exactly 1 | 0 to N (agent decides) |
+| **Execution flow** | Fixed pipeline | Dynamic loop |
+| **Predictability** | High | Variable |
+| **Best for** | Standard Q&A | Complex, multi-part questions |
+| **Implementation** | LangChain chains | LangGraph + agent |
+| **Speed** | Faster (fixed steps) | Slower (iterative) |
+
+### vs Part 1
+
+| Feature | Part 1 | Part 2 (Both) |
 |---------|--------|--------|
 | **Conversation** | ❌ No | ✅ Yes |
 | **Question Reformulation** | ❌ No | ✅ Yes |
 | **Chat History** | ❌ No | ✅ Yes (BaseMessage[]) |
-| **Architecture** | LangGraph nodes | LangChain chains |
-| **Execution** | Custom graph | Pre-built chains |
 | **Complexity** | Simple | Moderate |
 
 ## Advantages
 
+### Chains Approach (index-chains.ts)
 ✅ **Context Awareness**: Understands pronouns and references to previous turns  
 ✅ **Automatic Reformulation**: Handles ambiguous follow-up questions  
-✅ **Reliable**: Uses battle-tested LangChain chains  
-✅ **Predictable**: Linear execution flow  
-✅ **Easy to Debug**: Clear chain structure  
+✅ **Predictable**: Fixed execution path, easy to debug  
+✅ **Fast**: Single retrieval per question (~60-80s per turn)  
+✅ **Simple**: Uses battle-tested LangChain chains  
+
+### Agents Approach (index-agents.ts)
+✅ **Flexible Retrieval**: Can retrieve 0, 1, or many times as needed  
+✅ **Thorough**: Gathers all necessary information before answering  
+✅ **Complex Questions**: Handles multi-part questions requiring synthesis  
+✅ **Adaptive**: Adjusts behavior based on question complexity  
+✅ **Context Aware**: Maintains chat history like chains
 
 ## Limitations
 
-1. **Always Retrieves**: Can't skip retrieval for simple questions
+### Chains Approach (index-chains.ts)
+1. **Always Retrieves Once**: Can't skip retrieval or retrieve multiple times
 2. **No Validation**: Doesn't check if retrieved docs are relevant
 3. **Linear Flow**: No conditional logic or loops
-4. **Growing History**: History grows unbounded (memory issue for long conversations)
-5. **No Self-Correction**: Can't rewrite queries if retrieval fails
+4. **No Self-Correction**: Can't rewrite queries if retrieval fails
+
+### Agents Approach (index-agents.ts)
+1. **Slower**: Multiple retrievals increase latency (varies by question)
+2. **Unpredictable**: Agent decisions vary, harder to debug
+3. **LLM-Dependent**: Quality depends on agent making good decisions
+4. **Prompt Engineering**: Requires careful prompt design for llama2
+
+### Both Approaches
+- **Growing History**: History grows unbounded (memory issue for long conversations)
+- **Context Window**: Very long conversations may exceed LLM context limit
 
 ## Memory Management
 

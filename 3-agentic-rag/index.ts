@@ -6,6 +6,7 @@ import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { AIMessage, HumanMessage, BaseMessage, ToolMessage } from "@langchain/core/messages";
+import { prettyPrint } from "../utils/prettyPrint";
 
 // ============================================================================
 // PART 3: AGENTIC RAG WITH LANGGRAPH
@@ -22,7 +23,7 @@ import { AIMessage, HumanMessage, BaseMessage, ToolMessage } from "@langchain/co
 // ============================================================================
 
 console.log("\n" + "=".repeat(70));
-console.log("🤖 Initializing Part 3: Agentic RAG with LangGraph");
+console.log("🤖 Part 3: Agentic RAG with LangGraph");
 console.log("=".repeat(70));
 
 const llm = new ChatOllama({
@@ -40,7 +41,7 @@ const embeddings = new OllamaEmbeddings({
 // STEP 1: PREPROCESS DOCUMENTS
 // ============================================================================
 
-console.log("\n📥 Step 1: Loading and preprocessing documents...");
+console.log("\n📥 Loading and indexing documents...");
 
 const urls = [
   "https://lilianweng.github.io/posts/2023-06-23-agent/",
@@ -48,27 +49,22 @@ const urls = [
   "https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/",
 ];
 
-console.log(`   Loading ${urls.length} blog posts...`);
 const docs = await Promise.all(
   urls.map((url) => new CheerioWebBaseLoader(url, { selector: "p" }).load())
 );
 
 const docsList = docs.flat();
-console.log(`✓ Loaded ${docsList.length} documents`);
 
-console.log("\n✂️  Splitting documents into chunks...");
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 500,
   chunkOverlap: 50,
 });
 const docSplits = await textSplitter.splitDocuments(docsList);
-console.log(`✓ Created ${docSplits.length} chunks`);
+console.log(`✓ Indexed ${docSplits.length} chunks from ${urls.length} blog posts\n`);
 
 // ============================================================================
 // STEP 2: CREATE A RETRIEVER TOOL
 // ============================================================================
-
-console.log("\n🔧 Step 2: Creating retriever tool...");
 
 const vectorStore = await MemoryVectorStore.fromDocuments(
   docSplits,
@@ -76,24 +72,12 @@ const vectorStore = await MemoryVectorStore.fromDocuments(
 );
 const retriever = vectorStore.asRetriever({ k: 3 });
 
-// Define tool information for the LLM
+// Define tool information for the LLM (prompt-based approach for llama2 compatibility)
 const toolDefinition = {
   name: "retrieve_blog_posts",
   description:
-    "Search and return information about Lilian Weng blog posts on LLM agents, prompt engineering, and adversarial attacks on LLMs. Input should be a search query string.",
-  parameters: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description: "The search query to find relevant blog content",
-      },
-    },
-    required: ["query"],
-  },
+    "Search and return information about Lilian Weng blog posts on LLM agents, prompt engineering, and adversarial attacks on LLMs.",
 };
-
-console.log(`✓ Retriever tool defined: ${toolDefinition.name}`);
 
 // ============================================================================
 // GRAPH STATE DEFINITION
@@ -110,11 +94,9 @@ const GraphState = Annotation.Root({
 // ============================================================================
 
 async function generateQueryOrRespond(state: typeof GraphState.State) {
-  console.log("\n🤔 Agent: Deciding whether to retrieve or respond...");
-  
   const { messages } = state;
   
-  // Create a system message that instructs the model about tool availability
+  // Use prompt engineering for tool calling (llama2 compatible)
   const systemPrompt = `You are a helpful assistant with access to a retrieval tool.
 
 Tool available: retrieve_blog_posts
@@ -139,21 +121,17 @@ Otherwise, respond normally to the user.`;
     const queryMatch = content.match(/QUERY: (.+)/);
     const query = queryMatch ? queryMatch[1].trim() : messages[messages.length - 1].content.toString();
     
-    console.log(`✓ Decision: Retrieve documents with query: "${query}"`);
-    
-    // Create an AI message with tool call information
+    // Create AI message with tool call metadata
     const aiMessage = new AIMessage({
       content: "",
       additional_kwargs: {
         tool_call: true,
-        tool_name: "retrieve_blog_posts",
         tool_query: query,
       },
     });
     
     return { messages: [aiMessage] };
   } else {
-    console.log("✓ Decision: Respond directly (no retrieval needed)");
     return { messages: [response] };
   }
 }
@@ -163,8 +141,6 @@ Otherwise, respond normally to the user.`;
 // ============================================================================
 
 async function gradeDocuments(state: typeof GraphState.State) {
-  console.log("\n📊 Grading document relevance...");
-  
   const { messages } = state;
   const question = messages[0].content;
   const toolMessage = messages[messages.length - 1];
@@ -194,15 +170,11 @@ Your response (yes/no):`
 
   const gradeResult = score.content.toString().toLowerCase().trim();
   
-  console.log(`   Relevance score: ${gradeResult}`);
-  
   if (gradeResult.includes("yes")) {
-    console.log("✓ Documents are relevant - proceeding to generate answer");
     return {
       messages: [new AIMessage("generate")],
     };
   } else {
-    console.log("✗ Documents not relevant - will rewrite query");
     return {
       messages: [new AIMessage("rewrite")],
     };
@@ -214,8 +186,6 @@ Your response (yes/no):`
 // ============================================================================
 
 async function rewrite(state: typeof GraphState.State) {
-  console.log("\n✍️  Rewriting question for better retrieval...");
-  
   const { messages } = state;
   const question = messages[0].content;
 
@@ -233,9 +203,6 @@ Formulate an improved question that is more specific and likely to retrieve rele
   const response = await rewritePrompt.pipe(llm).invoke({ question });
   
   const rewrittenQuestion = response.content.toString();
-  console.log(`   Original: ${question}`);
-  console.log(`   Rewritten: ${rewrittenQuestion}`);
-  console.log("✓ Question rewritten");
   
   return {
     messages: [new HumanMessage(rewrittenQuestion)],
@@ -247,8 +214,6 @@ Formulate an improved question that is more specific and likely to retrieve rele
 // ============================================================================
 
 async function generate(state: typeof GraphState.State) {
-  console.log("\n💬 Generating final answer...");
-  
   const { messages } = state;
   const question = messages[0].content;
   
@@ -279,8 +244,6 @@ Answer:`
     context,
     question,
   });
-
-  console.log("✓ Answer generated");
   
   return {
     messages: [response],
@@ -291,19 +254,16 @@ Answer:`
 // STEP 7: ASSEMBLE THE GRAPH
 // ============================================================================
 
-// Node to execute the retriever tool
+// Node to execute retrieval manually (llama2 compatible approach)
 async function retrieve(state: typeof GraphState.State) {
   const { messages } = state;
   const lastMessage = messages[messages.length - 1];
   
   if (lastMessage instanceof AIMessage && lastMessage.additional_kwargs?.tool_call) {
     const query = lastMessage.additional_kwargs.tool_query as string;
-    console.log(`\n🔍 Retrieving documents for: "${query}"`);
     
     const docs = await retriever.invoke(query);
     const context = docs.map(doc => doc.pageContent).join("\n\n");
-    
-    console.log(`✓ Retrieved ${docs.length} documents`);
     
     const toolMessage = new ToolMessage({
       content: context,
@@ -315,8 +275,6 @@ async function retrieve(state: typeof GraphState.State) {
   
   return { messages: [] };
 }
-
-console.log("\n🔨 Step 7: Assembling the agentic RAG graph...");
 
 // Helper function to determine if we should retrieve
 function shouldRetrieve(state: typeof GraphState.State) {
@@ -365,12 +323,7 @@ const graph = new StateGraph(GraphState)
   .addEdge("rewrite", "generateQueryOrRespond")
   .compile();
 
-console.log("✓ Agentic RAG graph compiled");
-console.log("\n📋 Graph structure:");
-console.log("   START → generateQueryOrRespond → [retrieve OR end]");
-console.log("   retrieve → gradeDocuments → [generate OR rewrite]");
-console.log("   generate → END");
-console.log("   rewrite → generateQueryOrRespond (loop)");
+console.log("✓ Graph compiled\n");
 
 // ============================================================================
 // STEP 8: RUN THE AGENTIC RAG
@@ -386,30 +339,29 @@ console.log("TEST 1: Complex question requiring retrieval");
 console.log("=".repeat(70));
 
 const question1 = "What are the types of memory in LLM agents?";
-console.log(`\n❓ Question: "${question1}"`);
+console.log(`\n❓ "${question1}"\n`);
 
 const startTime1 = Date.now();
-let step = 0;
 let result1;
 
+console.log("🔄 ReAct Cycle:\n");
 for await (const output of await graph.stream({
   messages: [new HumanMessage(question1)],
 })) {
-  step++;
-  const nodeName = Object.keys(output)[0];
-  console.log(`\n[Step ${step}] Node: ${nodeName}`);
-  result1 = Object.values(output)[0]; // Capture the latest state
+  const nodeOutput = Object.values(output)[0];
+  // Show the last message added by each node
+  const lastMsg = nodeOutput.messages[nodeOutput.messages.length - 1];
+  if (lastMsg) {
+    prettyPrint(lastMsg);
+  }
+  result1 = nodeOutput;
 }
 
 const duration1 = ((Date.now() - startTime1) / 1000).toFixed(2);
 const finalAnswer1 = result1!.messages[result1!.messages.length - 1];
 
-console.log("\n" + "=".repeat(70));
-console.log("📝 FINAL ANSWER:");
-console.log("=".repeat(70));
-console.log(finalAnswer1.content);
-console.log("\n" + "=".repeat(70));
-console.log(`⏱️  Time: ${duration1}s`);
+console.log(`\n💬 Final Answer:\n${finalAnswer1.content}`);
+console.log(`\n⏱️  ${duration1}s`);
 console.log("=".repeat(70));
 
 // Test 2: Simple greeting (should not retrieve)
@@ -418,26 +370,29 @@ console.log("TEST 2: Simple greeting (no retrieval needed)");
 console.log("=".repeat(70));
 
 const question2 = "Hello! How are you?";
-console.log(`\n❓ Question: "${question2}"`);
+console.log(`\n❓ "${question2}"\n`);
 
 const startTime2 = Date.now();
 let result2;
 
+console.log("🔄 ReAct Cycle:\n");
 for await (const output of await graph.stream({
   messages: [new HumanMessage(question2)],
 })) {
-  result2 = Object.values(output)[0];
+  const nodeOutput = Object.values(output)[0];
+  // Show the last message added by each node
+  const lastMsg = nodeOutput.messages[nodeOutput.messages.length - 1];
+  if (lastMsg) {
+    prettyPrint(lastMsg);
+  }
+  result2 = nodeOutput;
 }
 
 const duration2 = ((Date.now() - startTime2) / 1000).toFixed(2);
 const finalAnswer2 = result2!.messages[result2!.messages.length - 1];
 
-console.log("\n" + "=".repeat(70));
-console.log("📝 FINAL ANSWER:");
-console.log("=".repeat(70));
-console.log(finalAnswer2.content);
-console.log("\n" + "=".repeat(70));
-console.log(`⏱️  Time: ${duration2}s`);
+console.log(`\n💬 Final Answer:\n${finalAnswer2.content}`);
+console.log(`\n⏱️  ${duration2}s`);
 console.log("=".repeat(70));
 
 // Test 3: Question about prompt engineering
@@ -446,36 +401,28 @@ console.log("TEST 3: Specific question about prompt engineering");
 console.log("=".repeat(70));
 
 const question3 = "What does Lilian Weng say about chain of thought prompting?";
-console.log(`\n❓ Question: "${question3}"`);
+console.log(`\n❓ "${question3}"\n`);
 
 const startTime3 = Date.now();
 let result3;
 
+console.log("🔄 ReAct Cycle:\n");
 for await (const output of await graph.stream({
   messages: [new HumanMessage(question3)],
 })) {
-  result3 = Object.values(output)[0];
+  const nodeOutput = Object.values(output)[0];
+  // Show the last message added by each node
+  const lastMsg = nodeOutput.messages[nodeOutput.messages.length - 1];
+  if (lastMsg) {
+    prettyPrint(lastMsg);
+  }
+  result3 = nodeOutput;
 }
 
 const duration3 = ((Date.now() - startTime3) / 1000).toFixed(2);
 const finalAnswer3 = result3!.messages[result3!.messages.length - 1];
 
-console.log("\n" + "=".repeat(70));
-console.log("📝 FINAL ANSWER:");
-console.log("=".repeat(70));
-console.log(finalAnswer3.content);
-console.log("\n" + "=".repeat(70));
-console.log(`⏱️  Time: ${duration3}s`);
-console.log("=".repeat(70));
-
-console.log("\n" + "=".repeat(70));
-console.log("✅ AGENTIC RAG DEMO COMPLETE");
-console.log("=".repeat(70));
-console.log("\n🎯 Key Features Demonstrated:");
-console.log("   ✓ Intelligent decision-making (retrieve vs respond)");
-console.log("   ✓ Document relevance grading");
-console.log("   ✓ Query rewriting for better results");
-console.log("   ✓ Multi-document retrieval");
-console.log("   ✓ Conditional graph execution flow");
+console.log(`\n💬 Final Answer:\n${finalAnswer3.content}`);
+console.log(`\n⏱️  ${duration3}s`);
 console.log("=".repeat(70));
 

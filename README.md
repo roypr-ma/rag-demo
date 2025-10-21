@@ -9,8 +9,8 @@ A progressive series of Retrieval-Augmented Generation (RAG) implementations usi
 | Part | Description | Key Features | Tutorial |
 |------|-------------|--------------|----------|
 | **[Part 1: Basic RAG](1-basic-rag/)** | Foundation RAG pipeline | Simple retrieval + generation | [Tutorial](https://js.langchain.com/docs/tutorials/rag/) |
-| **[Part 2: Conversational RAG](2-chat-history/)** | Adds chat history | Context-aware retrieval | [Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history) |
-| **[Part 3: Agentic RAG](3-agentic-rag/)** | Intelligent agent | Decision-making + self-correction | [Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) |
+| **[Part 2: Conversational RAG](2-chat-history/)** | Adds chat history (2 approaches) | **Chains**: Fixed 1 retrieval<br>**Agents**: Multiple retrievals | [Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history) |
+| **[Part 3: Agentic RAG](3-agentic-rag/)** | **ReAct framework** agent | Reason → Act → Observe → Learn | [Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) |
 
 ## 🚀 Quick Start
 
@@ -33,7 +33,8 @@ yarn build
 
 # 6. Run any part
 yarn start:basic        # Part 1: Basic RAG
-yarn start:chat         # Part 2: Conversational RAG
+yarn start:chat         # Part 2: Conversational RAG (Chains)
+yarn start:chat:agents  # Part 2: Conversational RAG (Agents)
 yarn start:agentic      # Part 3: Agentic RAG
 ```
 
@@ -45,11 +46,14 @@ rag-langchain/
 │   ├── index.ts              # Basic RAG implementation
 │   └── README.md             # Detailed Part 1 docs
 ├── 2-chat-history/
-│   ├── index.ts              # Conversational RAG with chains
+│   ├── index-chains.ts       # Conversational RAG (Chains approach)
+│   ├── index-agents.ts       # Conversational RAG (Agents approach)
 │   └── README.md             # Detailed Part 2 docs
 ├── 3-agentic-rag/
 │   ├── index.ts              # Agentic RAG with LangGraph
 │   └── README.md             # Detailed Part 3 docs
+├── utils/
+│   └── prettyPrint.ts        # Message formatting utility
 ├── docker-compose.yml        # Ollama service
 ├── package.json
 └── README.md                 # This file
@@ -75,47 +79,63 @@ yarn start:basic  # ~60-80s
 ---
 
 ### Part 2: Conversational RAG
-**Add conversational memory** to handle follow-up questions.
+**Add conversational memory** to handle follow-up questions. Implements **both approaches** from the tutorial:
 
+#### Approach A: Chains (Predictable)
 ```bash
 yarn start:chat  # ~180-240s (3 turns)
 ```
+- **Fixed execution**: Exactly ONE retrieval per question
+- **Predictable**: Same flow every time
+- **Fast**: ~60-80s per question
+
+#### Approach B: Agents (Flexible)
+```bash
+yarn start:chat:agents  # ~200-300s (varies)
+```
+- **Dynamic execution**: 0 to N retrievals per question
+- **Adaptive**: Agent decides when it has enough info
+- **Thorough**: Gathers multiple pieces of information
 
 **What you'll learn:**
 - Chat history management
 - History-aware retrieval
 - Question reformulation
-- Chain composition
+- Chain composition (Approach A)
+- Agent loops and decision-making (Approach B)
 
 **Example:**
 ```
 Q1: "What is Task Decomposition?"
 Q2: "What are common ways of doing it?"  ← Understands "it" = task decomposition
-Q3: "Can you give me specific examples?" ← Maintains full context
+Q3: "Compare the approaches"            ← Agent may retrieve multiple times
 ```
 
 📄 **[Read detailed Part 2 documentation →](2-chat-history/README.md)**
 
 ---
 
-### Part 3: Agentic RAG
-**Build an intelligent agent** that makes decisions.
+### Part 3: Agentic RAG (ReAct Framework)
+**Build a ReAct agent** that reasons, acts, observes, and learns.
 
 ```bash
 yarn start:agentic  # ~90-180s
 ```
 
 **What you'll learn:**
-- Tool-based architecture
-- Conditional graph execution
-- Document relevance grading
-- Self-correction loops
-- Decision-making agents
+- **ReAct framework** (Reasoning + Acting pattern)
+- Conditional graph execution with feedback loops
+- Document relevance grading after retrieval
+- Query rewriting based on observations
+- Self-correction through continuous evaluation
 
-**Key capabilities:**
-- Decides when to retrieve vs respond directly
-- Validates document relevance before answering
-- Rewrites queries if documents aren't relevant
+**The ReAct Cycle:**
+1. **Reason**: "Should I retrieve information?"
+2. **Act**: Execute retrieval tool
+3. **Observe**: Grade document quality
+4. **Learn**: Rewrite query if needed, try again
+
+**Why ReAct?** Unlike Part 2B (agent with tools), Part 3 implements true ReAct where the agent evaluates results after each action and adapts its strategy accordingly.
 
 📄 **[Read detailed Part 3 documentation →](3-agentic-rag/README.md)**
 

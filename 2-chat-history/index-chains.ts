@@ -45,35 +45,27 @@ const embeddings = new OllamaEmbeddings({
 // DATA LOADING & INDEXING
 // ============================================================================
 
-console.log("\n📥 Loading web content...");
+console.log("\n📥 Loading and indexing documents...");
 const cheerioLoader = new CheerioWebBaseLoader(
   "https://lilianweng.github.io/posts/2023-06-23-agent/",
   { selector: "p" }
 );
 
 const docs = await cheerioLoader.load();
-console.log(`✓ Loaded ${docs.length} document(s)`);
-
-console.log("\n✂️  Splitting documents into chunks...");
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
   chunkOverlap: 200,
 });
 const splits = await textSplitter.splitDocuments(docs);
-console.log(`✓ Created ${splits.length} chunks`);
-
-console.log("\n📊 Creating vector store...");
 const vectorStore = await MemoryVectorStore.fromDocuments(splits, embeddings);
 const retriever = vectorStore.asRetriever();
-console.log("✓ Vector store ready");
+console.log(`✓ Indexed ${splits.length} chunks`);
 
 // ============================================================================
 // HISTORY-AWARE RETRIEVER
 // ============================================================================
 // This retriever reformulates the user's question based on chat history
 // before performing the search, ensuring context is preserved.
-
-console.log("\n🧠 Setting up history-aware retriever...");
 
 const contextualizeQSystemPrompt = `Given a chat history and the latest user question \
 which might reference context in the chat history, formulate a standalone question \
@@ -91,8 +83,6 @@ const historyAwareRetriever = await createHistoryAwareRetriever({
   retriever,
   rephrasePrompt: contextualizeQPrompt,
 });
-
-console.log("✓ History-aware retriever created");
 
 // ============================================================================
 // QUESTION ANSWERING CHAIN
@@ -124,7 +114,7 @@ const ragChain = await createRetrievalChain({
   combineDocsChain: questionAnswerChain,
 });
 
-console.log("✓ RAG chain with history ready");
+console.log("✓ Ready\n");
 
 // ============================================================================
 // STATEFUL CHAT HISTORY MANAGEMENT

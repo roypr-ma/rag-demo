@@ -1,10 +1,20 @@
 # Part 3: Agentic RAG with LangGraph
 
-An intelligent RAG agent that can make decisions, validate retrieved content, and self-correct.
+An intelligent RAG agent implementing the **ReAct (Reasoning + Acting) framework** for autonomous decision-making, validation, and self-correction.
 
 ## Overview
 
-This implementation follows the [LangChain Agentic RAG Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) and demonstrates advanced RAG capabilities using LangGraph's conditional execution flow.
+This implementation follows the [LangChain Agentic RAG Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) and demonstrates the **ReAct framework** applied to RAG - where the agent reasons about what to do, acts by using tools, observes results, and repeats in a loop until satisfied.
+
+### What is ReAct?
+
+**ReAct** (Reasoning and Acting) is a framework where LLMs:
+1. **Reason** about what action to take
+2. **Act** by executing tools
+3. **Observe** the results
+4. **Repeat** until the task is complete
+
+This creates an autonomous agent that can think, try, evaluate, and self-correct - not just execute a fixed pipeline.
 
 ## Key Features
 
@@ -23,41 +33,92 @@ This implementation follows the [LangChain Agentic RAG Tutorial](https://docs.la
 - Improved query is used to retrieve again
 - Loops until relevant documents are found
 
-### 🔧 Tool-Based Architecture
-- Uses a retriever tool that the agent can invoke
-- LangGraph's ToolNode handles tool execution
+### 🔧 Prompt-Based Tool Architecture
+- Uses prompt engineering for tool calling (llama2 compatible)
+- Custom retrieve node executes vector store search
 - Conditional edges route based on agent decisions
+
+## ReAct Framework in Action
+
+Part 3 implements the **ReAct (Reasoning + Acting) pattern** through a continuous loop:
+
+### The ReAct Cycle
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     ReAct Loop                          │
+└─────────────────────────────────────────────────────────┘
+
+1. REASON: "Should I retrieve or answer directly?"
+   └─→ Agent analyzes the question
+   
+2. ACT: Execute the decided action
+   ├─→ Simple query: Respond directly
+   └─→ Complex query: Use retrieval tool
+   
+3. OBSERVE: Evaluate the results
+   └─→ Grade documents: Are they relevant?
+   
+4. REASON: "Is this good enough?"
+   ├─→ Yes: Generate final answer
+   └─→ No: Rewrite query (back to step 2)
+```
+
+### Why This Is True ReAct
+
+| ReAct Component | Implementation in Part 3 |
+|-----------------|--------------------------|
+| **Reasoning** | Agent decides: retrieve vs respond, relevant vs rewrite |
+| **Acting** | Executes retrieval tool, generates answers |
+| **Observing** | Grades document relevance after each retrieval |
+| **Iterating** | Loops back to rewrite query if documents aren't good |
+
+**Key Insight:** Unlike Part 1 (fixed pipeline) or Part 2 (iterative retrieval), Part 3 **reasons before each action** and **validates after each action** - the hallmark of ReAct.
+
+### Part 2B vs Part 3: Agent vs ReAct
+
+| Feature | Part 2B: Agent | Part 3: ReAct Agent |
+|---------|----------------|---------------------|
+| **Pattern** | Agent with tools | ReAct framework |
+| **Reasoning** | "Should I retrieve more?" | "Should I retrieve? Are results good? What should I do?" |
+| **Acting** | Retrieves documents | Retrieves + validates + rewrites |
+| **Observing** | ❌ No evaluation | ✅ Grades document quality |
+| **Learning** | ❌ No adjustment | ✅ Rewrites query based on observation |
+| **Loop** | Retrieve → Retrieve → ... | Reason → Act → Observe → Reason → ... |
+
+**Bottom Line:** Part 2B is an agent that *can* use tools multiple times. Part 3 is a **ReAct agent** that *reasons, acts, observes, and learns* in a continuous cycle.
 
 ## Architecture
 
-### Graph Structure
+### Graph Structure (ReAct Flow)
 
 ```
 START
   ↓
-generateQueryOrRespond ←──────┐
-  ↓                           │
-  ├─→ (no tools) → END        │
-  └─→ (has tools) → retrieve  │
-                      ↓       │
-                 gradeDocuments│
-                      ↓       │
+generateQueryOrRespond ←─────────────┐
+  ↓ (REASON)                         │
+  ├─→ (no tools) → END               │
+  └─→ (has tools) → retrieve         │
+                      ↓ (ACT)        │
+                 gradeDocuments       │
+                      ↓ (OBSERVE)    │
                       ├─→ (relevant) → generate → END
                       └─→ (not relevant) → rewrite ───┘
+                                          ↑ (REASON + ACT)
 ```
 
-### Nodes
+### Nodes (Mapped to ReAct)
 
-1. **generateQueryOrRespond**: Agent decides whether to use retrieval or respond directly
-2. **retrieve**: Custom node that executes the vector store retrieval
-3. **gradeDocuments**: LLM grades document relevance
-4. **rewrite**: Reformulates the question for better retrieval
-5. **generate**: Creates final answer using relevant context
+1. **generateQueryOrRespond** (Reason): LLM decides whether to retrieve or respond
+2. **retrieve** (Act): Executes the vector store retrieval tool
+3. **gradeDocuments** (Observe): LLM evaluates document relevance
+4. **rewrite** (Reason + Act): LLM improves query and tries again
+5. **generate** (Act): Creates final answer using validated context
 
-### Conditional Edges
+### Conditional Edges (ReAct Decisions)
 
-- `shouldRetrieve()`: Routes to retrieval or direct response
-- `checkRelevance()`: Routes to generation or query rewriting
+- `shouldRetrieve()`: Reasoning step - "Do I need information?"
+- `checkRelevance()`: Observation step - "Is this information good?"
 
 ## Data Sources
 
@@ -119,7 +180,7 @@ Expected: Answer about chain of thought from the blog posts
 | **Self-Correction** | No query rewriting | Rewrites queries if needed |
 | **Execution Flow** | Linear chain | Conditional graph with loops |
 | **Chat History** | Yes (conversational) | No (single-turn) |
-| **Tools** | No tools | Uses retriever tool |
+| **Tool Calling** | No tools | Prompt-based tool calling |
 
 ## Technical Details
 
@@ -130,6 +191,8 @@ Expected: Answer about chain of thought from the blog posts
 
 ### Models
 - **LLM**: llama2 (for agent reasoning, grading, rewriting, generation)
+  - Note: llama2 doesn't support native tool calling, so we use prompt-based approach
+  - Alternative: Use llama3.1+, mistral, or qwen2.5 for native tool calling support
 - **Embeddings**: nomic-embed-text (768-dimensional vectors)
 
 ### Prompts
@@ -156,14 +219,40 @@ Keep the answer concise (3 sentences max).
 
 ## Implementation Notes
 
-### Custom Tool Implementation
-Instead of using LangChain's built-in tool binding (which has deep TypeScript type issues), this implementation:
-- Uses **prompt engineering** to instruct the LLM about tool availability
-- Parses LLM responses for `TOOL_CALL: retrieve_blog_posts` pattern
-- Implements a **custom retrieve node** instead of `ToolNode`
-- Uses `instanceof` checks instead of type casting
+### Tool Implementation (llama2 Compatible)
 
-This approach is more explicit, easier to debug, and avoids TypeScript type instantiation depth limits.
+This implementation uses **prompt-based tool calling** instead of native tool APIs for llama2 compatibility:
+
+**Why this approach?**
+- llama2 doesn't support native function/tool calling
+- The tutorial uses models with built-in tool support (like GPT-4)
+- We use prompt engineering to achieve the same functionality
+
+**How it works:**
+1. **Prompt instructions**: LLM is instructed to respond with `TOOL_CALL: retrieve_blog_posts\nQUERY: <query>` when retrieval is needed
+2. **Response parsing**: We parse the LLM's text response to detect tool calls
+3. **Manual execution**: A custom `retrieve` node executes the vector store search
+4. **Metadata storage**: Tool call info stored in `additional_kwargs` instead of `tool_calls`
+
+**Code example:**
+```typescript
+// Instruct the LLM about tool availability via prompt
+const systemPrompt = `You are a helpful assistant with access to a retrieval tool.
+
+If the user asks a question requiring information from Lilian Weng's blog posts, respond with:
+TOOL_CALL: retrieve_blog_posts
+QUERY: <your search query>
+
+Otherwise, respond normally.`;
+
+// Parse response to detect tool usage
+if (content.includes("TOOL_CALL: retrieve_blog_posts")) {
+  const query = content.match(/QUERY: (.+)/)[1];
+  // Execute retrieval manually
+}
+```
+
+This achieves the same agentic behavior as the tutorial, but works with any LLM (not just those with native tool calling).
 
 ### State Management
 Uses LangGraph's `Annotation.Root` for type-safe state:

@@ -37,7 +37,7 @@ const vectorStore = new MemoryVectorStore(embeddings);
 // DATA LOADING
 // ============================================================================
 
-console.log("📥 Loading web content...");
+console.log("\n📥 Loading and indexing documents...");
 const pTagSelector = "p";
 const cheerioLoader = new CheerioWebBaseLoader(
   "https://lilianweng.github.io/posts/2023-06-23-agent/",
@@ -47,27 +47,19 @@ const cheerioLoader = new CheerioWebBaseLoader(
 );
 
 const docs = await cheerioLoader.load();
-console.log(`✓ Loaded ${docs.length} document(s)`);
-
-console.log("\n✂️  Splitting documents into chunks...");
 const splitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
   chunkOverlap: 200,
 });
 const allSplits = await splitter.splitDocuments(docs);
-console.log(`✓ Created ${allSplits.length} chunks`);
-
-console.log("\n📊 Creating embeddings and indexing...");
 await vectorStore.addDocuments(allSplits);
-console.log("✓ Indexing complete");
+console.log(`✓ Indexed ${allSplits.length} chunks`);
 
 // ============================================================================
 // RETRIEVE AND AUGMENT (RAG PIPELINE)
 // ============================================================================
 
-console.log("\n🔧 Setting up RAG pipeline...");
 const promptTemplate = await pull<ChatPromptTemplate>("rlm/rag-prompt");
-console.log("✓ Prompt template loaded");
 
 // Define state for application
 const InputStateAnnotation = Annotation.Root({
