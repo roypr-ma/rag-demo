@@ -140,26 +140,43 @@ graph LR
 
 ```mermaid
 graph LR
-    START[🆕 Question + 💬 Chat History] --> AGENT{🤖 Agent Node}
+    subgraph "Chat History"
+        A[💬 Previous Messages]
+        B[🆕 New Question]
+    end
     
-    AGENT -->|Needs Info| TOOL[📝 Generate Tool Call]
-    TOOL --> RETRIEVE[🔍 Retrieve Node]
-    RETRIEVE --> VECTOR[(Vector Store)]
-    VECTOR --> DOCS[📋 Retrieved Docs]
-    DOCS --> MESSAGES[💬 Add to Messages]
-    MESSAGES --> AGENT
+    subgraph "Agent Decision Loop"
+        A --> C{🤖 Agent Node}
+        B --> C
+        C -->|Needs Info| D[📝 Generate Tool Call]
+        F[💬 Tool Results] --> C
+    end
     
-    AGENT -->|Has Enough Info| ANSWER[✅ Final Answer]
+    subgraph "Document Retrieval"
+        D --> E[🔍 Retrieve Node]
+        E -->|Search| G[(Vector Store)]
+        G --> F
+    end
     
-    ANSWER --> UPDATE[💾 Update Chat History]
-    UPDATE --> READY[📚 Ready for Next Turn]
+    subgraph "Answer Generation"
+        C -->|Has Enough Info| H[✅ Final Answer]
+    end
     
-    style AGENT fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
-    style RETRIEVE fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style ANSWER fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    subgraph "State Update"
+        H --> I[💾 Add to History]
+        B --> I
+        I --> J[📚 Updated History]
+    end
+    
+    J -.->|Next Turn| A
+    
+    style C fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style E fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style G fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style H fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
-**Key**: Agent can loop through retrieval 0-N times until it decides it has enough information.
+**Key**: Agent can loop through retrieval 0-N times until it decides it has enough information. The loop between "Tool Results" and "Agent Node" allows multiple retrievals.
 
 **Major Difference**: 
 - **Chains**: `Question → Reformulate → Retrieve (1x) → Answer`
