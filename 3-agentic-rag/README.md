@@ -22,15 +22,17 @@ Creates an autonomous agent that thinks, tries, evaluates, and self-corrects.
 
 ## Running Part 3
 
-**Prerequisites:**
+**⚠️ Prerequisites:** Pull the required model first (one-time setup):
 ```bash
-docker exec ollama-server ollama pull qwen2.5:3b
+docker exec ollama-server ollama pull llama3.1  # ~4.7GB, 5-10 min download
 ```
 
 **Run:**
 ```bash
 yarn start:agentic  # ~90-180s
 ```
+
+**Note:** Part 3 uses `llama3.1` instead of `qwen2.5:3b` for better instruction following and document grading accuracy.
 
 ## What It Does
 
@@ -97,25 +99,30 @@ Agent continuously evaluates and improves until it gets relevant documents.
 ## Key Components
 
 **5 Graph Nodes:**
-1. **Agent**: Decides whether to retrieve or answer directly
-2. **Retrieve**: Executes document retrieval via tool
-3. **Grade**: Evaluates document relevance (relevant/not relevant)
-4. **Rewrite**: Improves query if documents aren't relevant
-5. **Generate**: Creates final answer from relevant documents
+1. **generateQueryOrRespond**: Decides whether to retrieve or answer directly (with tool calling)
+2. **retrieve**: ToolNode that executes document retrieval
+3. **gradeDocuments**: Evaluates document relevance (relevant/not relevant)
+4. **rewrite**: Improves query if documents aren't relevant
+5. **generate**: Creates final answer from relevant documents
 
 **Conditional Routing:**
-- After Agent: → Retrieve (if tool call) or Generate (if direct answer)
-- After Grade: → Generate (if relevant) or Rewrite (if not relevant)
-- After Rewrite: → Agent (try again with new query)
+- After generateQueryOrRespond: → retrieve (if tool call) or END (if direct answer)
+- After gradeDocuments: → generate (if relevant) or rewrite (if not relevant)
+- After rewrite: → generateQueryOrRespond (try again with new query)
 
 **Feedback Loop:**
-The Rewrite → Agent edge creates a self-correction loop that continues until relevant documents are found.
+The rewrite → generateQueryOrRespond edge creates a self-correction loop that continues until relevant documents are found.
 
 ## Configuration
 
 **Models:**
-- **LLM**: `qwen2.5:3b` (~2GB) - requires tool-calling support
+- **LLM**: `llama3.1` (~4.7GB) - requires tool-calling support
 - **Embeddings**: `nomic-embed-text` (~274MB)
+
+**System Requirements:**
+- **RAM**: Minimum 8GB recommended for `llama3.1`
+- **Disk**: 5GB free space for model storage
+- **CPU/GPU**: CPU-only works, GPU significantly faster
 
 **Data Sources:**
 - 3 blog posts from Lilian Weng

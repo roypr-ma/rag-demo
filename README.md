@@ -15,7 +15,9 @@ A progressive series of Retrieval-Augmented Generation (RAG) implementations usi
 ## 🚀 Quick Start
 
 ```bash
-# 1. Ensure Colima has sufficient memory (8GB for llama2)
+# 1. Ensure Colima has sufficient memory
+# 8GB minimum (for Part 1, 2)
+# 12GB recommended (if running Part 3 with llama3.1)
 colima stop && colima start --memory 8 --cpu 4
 
 # 2. Install dependencies
@@ -28,8 +30,11 @@ docker-compose up -d
 docker exec ollama-server ollama pull llama2
 docker exec ollama-server ollama pull nomic-embed-text
 
-# For Part 2B (Agents) and Part 3 (Agentic RAG) - requires tool-calling support
+# For Part 2B (Agents)
 docker exec ollama-server ollama pull qwen2.5:3b
+
+# For Part 3 (Agentic RAG) - better tool-calling and instruction following
+docker exec ollama-server ollama pull llama3.1
 
 # 5. Build
 yarn build
@@ -122,6 +127,12 @@ Q3: "Compare the approaches"            ← Agent may retrieve multiple times
 ### Part 3: Agentic RAG (ReAct Framework)
 **Build a ReAct agent** that reasons, acts, observes, and learns.
 
+**⚠️ Prerequisites:** Pull the required model first:
+```bash
+docker exec ollama-server ollama pull llama3.1  # ~4.7GB
+```
+
+**Run:**
 ```bash
 yarn start:agentic  # ~90-180s
 ```
@@ -130,7 +141,7 @@ yarn start:agentic  # ~90-180s
 - Document relevance grading after retrieval
 - Query rewriting based on observations
 - Self-correction through continuous evaluation
-- **Requires**: Model with tool-calling support (qwen2.5, llama3.1, mistral)
+- **Requires**: `llama3.1` for better tool-calling and instruction following
 
 **The ReAct Cycle:**
 1. **Reason**: "Should I retrieve information?"
@@ -150,8 +161,11 @@ yarn start:agentic  # ~90-180s
 
 **Current Configuration:**
 - **LLM (Part 1, 2A)**: `llama2` (~3.8GB) - Good reasoning, balanced performance
-- **LLM (Part 2B, 3)**: `qwen2.5:3b` (~2GB) - Tool-calling support required
+- **LLM (Part 2B)**: `qwen2.5:3b` (~2GB) - Tool-calling support
+- **LLM (Part 3)**: `llama3.1` (~4.7GB, requires 8GB RAM) - Better tool-calling and instruction following
 - **Embeddings**: `nomic-embed-text` (~274MB) - 768-dimensional vectors
+
+**💡 Note:** Part 3 uses a larger model (`llama3.1`) for more reliable document grading and query rewriting.
 
 ### Alternative Models
 

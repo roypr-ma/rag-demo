@@ -5,7 +5,10 @@ import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { createRetrieverTool } from "langchain/tools/retriever";
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
-import { AIMessage, HumanMessage, BaseMessage, ToolMessage } from "@langchain/core/messages";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+import { AIMessage, HumanMessage, BaseMessage } from "@langchain/core/messages";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
 import { logSection, logQuestion, logDivider, logTime, logSeparator } from "../utils/logger.js";
 
 // ============================================================================
@@ -18,7 +21,7 @@ logSection("🤖 Part 3: Agentic RAG with ReAct Framework");
 
 const llm = new ChatOllama({
   baseUrl: "http://localhost:11434",
-  model: "qwen2.5:3b", // Requires tool-calling support
+  model: "llama3.1", // Better tool-calling and instruction following
   temperature: 0,
 });
 
@@ -60,8 +63,13 @@ console.log(`   ✓ Indexed ${docSplits.length} chunks from ${urls.length} blog 
 
 const tool = createRetrieverTool(retriever, {
   name: "retrieve_blog_posts",
-  description: "Search Lilian Weng's blog posts on LLM agents, prompt engineering, and adversarial attacks.",
+  description: "Search and return information about Lilian Weng blog posts on LLM agents, prompt engineering, and adversarial attacks on LLMs.",
 });
+const tools = [tool];
+
+// Create ToolNode for retrieval
+// @ts-expect-error - Type inference issue with ToolNode
+const toolNode = new ToolNode(tools);
 
 // ============================================================================
 // GRAPH STATE
@@ -71,33 +79,19 @@ const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => x.concat(y),
   }),
-  question: Annotation<string>({
-    reducer: (x, y) => y ?? x ?? "",
-    default: () => "",
-  }),
 });
 
 // ============================================================================
-// NODE 1: AGENT - Decides to retrieve or answer
+// NODE 1: GENERATE QUERY OR RESPOND
 // ============================================================================
 
-async function agent(state: typeof GraphState.State) {
+async function generateQueryOrRespond(state: typeof GraphState.State) {
   const { messages } = state;
   
   console.log("🤔 Agent reasoning");
   
-  const systemPrompt = `You are an assistant for question-answering about LLM agents.
-
-If the question is a greeting or general chat, respond directly.
-If the question needs information from the blog, use the retrieve_blog_posts tool.
-
-You have access to one tool:
-- retrieve_blog_posts: Search Lilian Weng's blog posts`;
-
-  const response = await llm.bindTools([tool]).invoke([
-    { role: "system", content: systemPrompt },
-    ...messages,
-  ]);
+  const model = llm.bindTools(tools);
+  const response = await model.invoke(messages);
   
   if (response.tool_calls && response.tool_calls.length > 0) {
     console.log(`   → Decision: Retrieve with query "${response.tool_calls[0].args.query}"\n`);
@@ -109,164 +103,134 @@ You have access to one tool:
 }
 
 // ============================================================================
-// NODE 2: RETRIEVE - Execute retrieval tool
+// NODE 2: GRADE DOCUMENTS
 // ============================================================================
 
-async function retrieve(state: typeof GraphState.State) {
-  const { messages } = state;
-  const lastMessage = messages[messages.length - 1] as AIMessage;
-  
-  if (!lastMessage.tool_calls || lastMessage.tool_calls.length === 0) {
-    return { messages: [] };
-  }
-  
-  const toolCall = lastMessage.tool_calls[0];
-  console.log(`📥 Retrieving documents`);
-  
-  const docs = await retriever.invoke(toolCall.args.query);
-  const content = docs.map(d => d.pageContent).join("\n\n");
-  
-  console.log(`   → Retrieved ${docs.length} documents\n`);
-  
-  return {
-    messages: [
-      new ToolMessage({
-        content: content,
-        tool_call_id: toolCall.id!,
-      }),
-    ],
-  };
-}
+const gradePrompt = ChatPromptTemplate.fromTemplate(
+  `You are a grader assessing relevance of retrieved docs to a user question.
+Here are the retrieved docs:
+\n ------- \n
+{context}
+\n ------- \n
+Here is the user question: {question}
+If the content of the docs are relevant to the users question, score them as relevant.
+Give a binary score 'yes' or 'no' score to indicate whether the docs are relevant to the question.
+Yes: The docs are relevant to the question.
+No: The docs are not relevant to the question.`
+);
 
-// ============================================================================
-// NODE 3: GRADE - Check document relevance
-// ============================================================================
+const gradeDocumentsSchema = z.object({
+  binaryScore: z.string().describe("Relevance score 'yes' or 'no'"),
+});
 
 async function gradeDocuments(state: typeof GraphState.State) {
-  const { messages, question } = state;
-  
-  // Find the most recent tool result
-  let retrievedDocs = "";
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i]._getType() === "tool") {
-      retrievedDocs = messages[i].content as string;
-      break;
-    }
-  }
+  const { messages } = state;
   
   console.log("📊 Grading document relevance");
   
-  const gradePrompt = `You are a grader assessing relevance of retrieved documents to a question.
-
-Question: ${question}
-
-Retrieved documents:
-${retrievedDocs.substring(0, 500)}...
-
-Are these documents relevant to the question? Answer only: relevant or not relevant`;
-
-  const response = await llm.invoke(gradePrompt);
-  const grade = response.content.toString().toLowerCase();
+  // @ts-expect-error - Type inference issue with structured output
+  const model = llm.withStructuredOutput(gradeDocumentsSchema);
+  const chain = gradePrompt.pipe(model);
   
-  const isRelevant = grade.includes("relevant") && !grade.includes("not relevant");
+  const score = await chain.invoke({
+    question: messages[0].content,
+    context: messages[messages.length - 1].content,
+  });
+  
+  const isRelevant = score.binaryScore === "yes";
   
   console.log(`   → Grade: ${isRelevant ? "✅ Relevant" : "❌ Not relevant"}\n`);
   
   return {
     messages: [
       new AIMessage({
-        content: "",
-        additional_kwargs: { grade: isRelevant ? "relevant" : "not_relevant" },
+        content: isRelevant ? "generate" : "rewrite",
       }),
     ],
   };
 }
 
 // ============================================================================
-// NODE 4: REWRITE - Improve query if docs not relevant
+// NODE 3: REWRITE
 // ============================================================================
 
-async function rewriteQuery(state: typeof GraphState.State) {
-  const { question } = state;
+const rewritePrompt = ChatPromptTemplate.fromTemplate(
+  `Look at the input and try to reason about the underlying semantic intent / meaning. \n
+Here is the initial question:
+\n ------- \n
+{question}
+\n ------- \n
+Formulate an improved question:`
+);
+
+async function rewrite(state: typeof GraphState.State) {
+  const { messages } = state;
+  const question = messages[0].content;
   
   console.log("🔄 Rewriting query");
   
-  const rewritePrompt = `Rewrite this question to improve retrieval from a blog about LLM agents:
-
-Original question: ${question}
-
-Provide ONLY the rewritten question, nothing else.`;
-
-  const response = await llm.invoke(rewritePrompt);
-  const rewrittenQuestion = response.content.toString().trim();
+  const response = await rewritePrompt.pipe(llm).invoke({ question });
   
-  console.log(`   → New query: "${rewrittenQuestion}"\n`);
+  console.log(`   → New query: "${response.content}"\n`);
   
   return {
-    messages: [new HumanMessage(rewrittenQuestion)],
-    question: rewrittenQuestion,
+    messages: [response],
   };
 }
 
 // ============================================================================
-// NODE 5: GENERATE - Create final answer
+// NODE 4: GENERATE
 // ============================================================================
 
 async function generate(state: typeof GraphState.State) {
-  const { messages, question } = state;
-  
-  // Find retrieved docs
-  let retrievedDocs = "";
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i]._getType() === "tool") {
-      retrievedDocs = messages[i].content as string;
-      break;
-    }
-  }
+  const { messages } = state;
+  const question = messages[0].content;
+  const context = messages[messages.length - 1].content;
   
   console.log("✍️  Generating answer\n");
   
-  const generatePrompt = `Answer the question using the context below. Be concise (2-3 sentences).
-
-Question: ${question}
-
-Context:
-${retrievedDocs}
-
-Answer:`;
-
-  const response = await llm.invoke(generatePrompt);
+  const prompt = ChatPromptTemplate.fromTemplate(
+    `You are an assistant for question-answering tasks.
+Use the following pieces of retrieved context to answer the question.
+If you don't know the answer, just say that you don't know.
+Use three sentences maximum and keep the answer concise.
+Question: {question}
+Context: {context}`
+  );
   
-  return { messages: [response] };
+  const ragChain = prompt.pipe(llm);
+  
+  const response = await ragChain.invoke({
+    context,
+    question,
+  });
+  
+  return {
+    messages: [response],
+  };
 }
 
 // ============================================================================
 // ROUTING LOGIC
 // ============================================================================
 
-function routeAfterAgent(state: typeof GraphState.State): string {
+// Helper function to determine if we should retrieve
+function shouldRetrieve(state: typeof GraphState.State) {
   const { messages } = state;
   const lastMessage = messages[messages.length - 1] as AIMessage;
   
-  // If agent made tool call, retrieve
-  if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+  if (lastMessage.tool_calls && lastMessage.tool_calls.length) {
     return "retrieve";
   }
-  // Otherwise, answer directly
-  return "generate";
+  return END;
 }
 
-function routeAfterGrade(state: typeof GraphState.State): string {
+function checkRelevance(state: typeof GraphState.State) {
   const { messages } = state;
-  const lastMessage = messages[messages.length - 1] as AIMessage;
-  const grade = lastMessage.additional_kwargs?.grade;
+  const lastMessage = messages[messages.length - 1];
   
-  // If relevant, generate answer
-  if (grade === "relevant") {
-    return "generate";
-  }
-  // If not relevant, rewrite query
-  return "rewrite";
+  // gradeDocuments returns either "generate" or "rewrite"
+  return lastMessage.content === "generate" ? "generate" : "rewrite";
 }
 
 // ============================================================================
@@ -274,23 +238,20 @@ function routeAfterGrade(state: typeof GraphState.State): string {
 // ============================================================================
 
 const workflow = new StateGraph(GraphState)
-  .addNode("agent", agent)
-  .addNode("retrieve", retrieve)
-  .addNode("grade", gradeDocuments)
-  .addNode("rewrite", rewriteQuery)
+  .addNode("generateQueryOrRespond", generateQueryOrRespond)
+  .addNode("retrieve", toolNode)
+  .addNode("gradeDocuments", gradeDocuments)
+  .addNode("rewrite", rewrite)
   .addNode("generate", generate)
-  .addEdge(START, "agent")
-  .addConditionalEdges("agent", routeAfterAgent, {
-    retrieve: "retrieve",
-    generate: "generate",
-  })
-  .addEdge("retrieve", "grade")
-  .addConditionalEdges("grade", routeAfterGrade, {
-    generate: "generate",
-    rewrite: "rewrite",
-  })
-  .addEdge("rewrite", "agent")
-  .addEdge("generate", END);
+  // Add edges
+  .addEdge(START, "generateQueryOrRespond")
+  // Decide whether to retrieve
+  .addConditionalEdges("generateQueryOrRespond", shouldRetrieve)
+  .addEdge("retrieve", "gradeDocuments")
+  // Edges taken after grading documents
+  .addConditionalEdges("gradeDocuments", checkRelevance)
+  .addEdge("generate", END)
+  .addEdge("rewrite", "generateQueryOrRespond");
 
 const graph = workflow.compile();
 
@@ -307,7 +268,6 @@ async function askQuestion(question: string) {
   
   const result = await graph.invoke({
     messages: [new HumanMessage(question)],
-    question: question,
   });
   
   // Extract final answer
