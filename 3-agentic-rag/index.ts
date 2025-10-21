@@ -8,13 +8,18 @@ import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { AIMessage, HumanMessage, BaseMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { z } from "zod";
 import { logSection, logQuestion, logDivider, logTime, logSeparator } from "../utils/logger.js";
 
 // ============================================================================
 // PART 3: AGENTIC RAG WITH REACT FRAMEWORK
 // ============================================================================
 // ReAct pattern: Reason → Act → Observe → Learn (repeat until satisfied)
+//
+// Tutorial: https://docs.langchain.com/oss/javascript/langgraph/agentic-rag
+// Adaptations for Ollama:
+// - Uses llama3.1 instead of gpt-4o (better tool-calling than qwen2.5:3b)
+// - gradeDocuments: Text parsing instead of .withStructuredOutput (Ollama limitation)
+// - All other code follows tutorial structure exactly
 // ============================================================================
 
 logSection("🤖 Part 3: Agentic RAG with ReAct Framework");
@@ -105,6 +110,8 @@ async function generateQueryOrRespond(state: typeof GraphState.State) {
 // ============================================================================
 // NODE 2: GRADE DOCUMENTS
 // ============================================================================
+// Tutorial uses: model.withStructuredOutput(gradeDocumentsSchema)
+// Adaptation: Ollama doesn't support structured output, using text parsing
 
 const gradePrompt = ChatPromptTemplate.fromTemplate(
   `You are a grader assessing relevance of retrieved docs to a user question.
@@ -116,28 +123,36 @@ Here is the user question: {question}
 If the content of the docs are relevant to the users question, score them as relevant.
 Give a binary score 'yes' or 'no' score to indicate whether the docs are relevant to the question.
 Yes: The docs are relevant to the question.
-No: The docs are not relevant to the question.`
-);
+No: The docs are not relevant to the question.
 
-const gradeDocumentsSchema = z.object({
-  binaryScore: z.string().describe("Relevance score 'yes' or 'no'"),
-});
+Respond with a single word: yes or no`
+);
 
 async function gradeDocuments(state: typeof GraphState.State) {
   const { messages } = state;
   
   console.log("📊 Grading document relevance");
   
-  // @ts-expect-error - Type inference issue with structured output
-  const model = llm.withStructuredOutput(gradeDocumentsSchema);
-  const chain = gradePrompt.pipe(model);
+  // Tutorial uses: messages.at(-1)?.content
+  // We search backwards because messages array may have additional AI messages
+  let context = "";
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]._getType() === "tool") {
+      context = messages[i].content as string;
+      break;
+    }
+  }
   
-  const score = await chain.invoke({
+  const chain = gradePrompt.pipe(llm);
+  const response = await chain.invoke({
     question: messages[0].content,
-    context: messages[messages.length - 1].content,
+    context: context,
   });
   
-  const isRelevant = score.binaryScore === "yes";
+  // Tutorial: score.binaryScore === "yes"
+  // Adaptation: Parse text response
+  const grade = response.content.toString().toLowerCase().trim();
+  const isRelevant = grade.startsWith("yes");
   
   console.log(`   → Grade: ${isRelevant ? "✅ Relevant" : "❌ Not relevant"}\n`);
   
@@ -185,7 +200,16 @@ async function rewrite(state: typeof GraphState.State) {
 async function generate(state: typeof GraphState.State) {
   const { messages } = state;
   const question = messages[0].content;
-  const context = messages[messages.length - 1].content;
+  
+  // Tutorial uses: messages.at(-1)?.content
+  // We search backwards because messages array includes grade decision after ToolMessage
+  let context = "";
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]._getType() === "tool") {
+      context = messages[i].content as string;
+      break;
+    }
+  }
   
   console.log("✍️  Generating answer\n");
   
