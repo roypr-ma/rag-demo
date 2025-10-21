@@ -8,6 +8,7 @@ import { AIMessage, BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { logSection, logQuestion, logDivider, logTime, logSeparator, logSummary } from "../utils/logger.js";
 
 // ============================================================================
 // PART 2A: RAG WITH CHAT HISTORY (Chains Approach)
@@ -26,9 +27,7 @@ import { MemoryVectorStore } from "langchain/vectorstores/memory";
 // CONFIGURATION & SETUP
 // ============================================================================
 
-console.log("\n" + "=".repeat(70));
-console.log("🔧 Part 2A: RAG with Chat History (Chains Approach)");
-console.log("=".repeat(70));
+logSection("🔧 Part 2A: RAG with Chat History (Chains Approach)");
 
 const llm = new ChatOllama({
   baseUrl: "http://localhost:11434",
@@ -123,22 +122,20 @@ console.log("✓ Ready\n");
 const chatHistory: BaseMessage[] = [];
 
 async function askQuestion(question: string) {
-  console.log("\n" + "=".repeat(70));
-  console.log(`👤 Human: ${question}`);
-  console.log("-".repeat(70));
+  logQuestion(question);
 
   const startTime = Date.now();
   const result = await ragChain.invoke({
     input: question,
     chat_history: chatHistory,
   });
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  const duration = (Date.now() - startTime) / 1000;
 
   const answer = result.answer;
   console.log(`🤖 AI: ${answer}`);
-  console.log("-".repeat(70));
-  console.log(`⏱️  Time: ${duration}s`);
-  console.log("=".repeat(70));
+  logDivider();
+  logTime(duration);
+  logSeparator();
 
   // Update chat history
   chatHistory.push(new HumanMessage(question));
@@ -151,9 +148,7 @@ async function askQuestion(question: string) {
 // EXECUTION: CONVERSATIONAL INTERACTION
 // ============================================================================
 
-console.log("\n" + "=".repeat(70));
-console.log("🚀 STARTING CONVERSATIONAL RAG SESSION");
-console.log("=".repeat(70));
+logSection("🚀 STARTING CONVERSATIONAL RAG SESSION");
 
 // First question
 await askQuestion("What is Task Decomposition?");
@@ -164,9 +159,5 @@ await askQuestion("What are common ways of doing it?");
 // Another follow-up (continues the conversation)
 await askQuestion("Can you give me specific examples?");
 
-console.log("\n" + "=".repeat(70));
-console.log("📊 SUMMARY");
-console.log("=".repeat(70));
-console.log(`💾 Total messages in history: ${chatHistory.length}`);
-console.log("=".repeat(70));
+logSummary(chatHistory.length);
 

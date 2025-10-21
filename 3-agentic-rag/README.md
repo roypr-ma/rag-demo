@@ -1,285 +1,176 @@
-# Part 3: Agentic RAG with LangGraph
+# Part 3: Agentic RAG with ReAct Framework
 
-An intelligent RAG agent implementing the **ReAct (Reasoning + Acting) framework** for autonomous decision-making, validation, and self-correction.
+An intelligent RAG agent implementing the **ReAct (Reasoning + Acting) framework** for autonomous decision-making, document validation, and self-correction.
 
 ## Overview
 
-This implementation follows the [LangChain Agentic RAG Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) and demonstrates the **ReAct framework** applied to RAG - where the agent reasons about what to do, acts by using tools, observes results, and repeats in a loop until satisfied.
+Unlike Part 2 (which uses a simple agent), Part 3 builds a **custom ReAct graph** with:
+- **Decision Making**: Agent chooses to retrieve or respond
+- **Document Grading**: Validates relevance after retrieval  
+- **Self-Correction**: Rewrites queries if documents aren't relevant
+- **Feedback Loops**: Continuous improvement until satisfied
 
 ### What is ReAct?
 
-**ReAct** (Reasoning and Acting) is a framework where LLMs:
-1. **Reason** about what action to take
-2. **Act** by executing tools
-3. **Observe** the results
-4. **Repeat** until the task is complete
+**ReAct** (Reasoning and Acting):
+1. **Reason**: Decide what action to take
+2. **Act**: Execute tools (retrieve documents)
+3. **Observe**: Evaluate results (grade relevance)
+4. **Learn**: Improve and try again if needed
 
-This creates an autonomous agent that can think, try, evaluate, and self-correct - not just execute a fixed pipeline.
+Creates an autonomous agent that thinks, tries, evaluates, and self-corrects.
 
-## Key Features
+## Running Part 3
 
-### 🤔 Intelligent Decision Making
-- The agent decides whether to retrieve documents or respond directly
-- Simple greetings get immediate responses without retrieval
-- Complex questions trigger the retrieval tool
-
-### 📊 Document Grading
-- Validates relevance of retrieved documents before generating answers
-- Uses LLM to assess if documents contain information relevant to the question
-- Only generates answers when documents are deemed relevant
-
-### ✍️ Self-Correction Loop
-- If retrieved documents aren't relevant, the agent rewrites the query
-- Improved query is used to retrieve again
-- Loops until relevant documents are found
-
-### 🔧 Prompt-Based Tool Architecture
-- Uses prompt engineering for tool calling (llama2 compatible)
-- Custom retrieve node executes vector store search
-- Conditional edges route based on agent decisions
-
-## ReAct Framework in Action
-
-Part 3 implements the **ReAct (Reasoning + Acting) pattern** through a continuous loop:
-
-### The ReAct Cycle
-
+**Prerequisites:**
+```bash
+docker exec ollama-server ollama pull qwen2.5:3b
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     ReAct Loop                          │
-└─────────────────────────────────────────────────────────┘
 
-1. REASON: "Should I retrieve or answer directly?"
-   └─→ Agent analyzes the question
-   
-2. ACT: Execute the decided action
-   ├─→ Simple query: Respond directly
-   └─→ Complex query: Use retrieval tool
-   
-3. OBSERVE: Evaluate the results
-   └─→ Grade documents: Are they relevant?
-   
-4. REASON: "Is this good enough?"
-   ├─→ Yes: Generate final answer
-   └─→ No: Rewrite query (back to step 2)
+**Run:**
+```bash
+yarn start:agentic  # ~90-180s
 ```
+
+## What It Does
+
+Answers two questions using ReAct loop:
+1. "What is Task Decomposition?"
+2. "What are the types of agent memory?"
+
+For each question, the agent:
+- Decides whether to retrieve or answer directly
+- Retrieves documents if needed
+- Grades document relevance
+- Rewrites query and retrieves again if not relevant
+- Generates answer once it has good documents
 
 ## Architecture
 
-### Graph Structure (ReAct Flow)
+### ReAct Flow
 
 ```mermaid
 graph LR
-    subgraph "1️⃣ REASON: Initial Decision"
-        Q[❓ User Question] --> D{🤔 Analyze Question<br/>🧠 LLM}
-        D -->|Simple/Greeting| R1[💬 Direct Response<br/>🧠 LLM]
-        D -->|Needs Information| D2[📝 Formulate Query<br/>🧠 LLM]
+    Q[❓ Question] --> A{🤔 Agent<br/>Decide<br/>🧠 LLM}
+    
+    subgraph "Path 1: Direct Answer"
+        A -->|Simple/Greeting| R[💬 Direct Response<br/>🧠 LLM]
+        R --> END1[🎯 Final Answer]
     end
     
-    subgraph "2️⃣ ACT: Retrieval & Response"
-        D2 --> RET[🔍 Retriever Tool<br/>🔧 TOOL]
-        RET --> VS[(📚 Vector Store<br/>3 Blog Posts)]
-        VS --> DOCS[📋 Retrieved Docs]
-        R1 --> END1[🎯 Final Answer]
-        GEN[✍️ Generate Answer<br/>🧠 LLM] --> END1
+    subgraph "Path 2: Retrieval & Validation"
+        A -->|Needs Info| T[📝 Tool Call]
+        T --> RET[🔍 Retrieve<br/>🔧 TOOL]
+        RET --> VS[(📚 Vector Store)]
+        VS --> DOCS[📋 Documents]
+        DOCS --> G{📊 Grade<br/>🧠 LLM}
+        G -->|✅ Relevant| GEN[✍️  Generate<br/>🧠 LLM]
+        G -->|❌ Not Relevant| RW[🔄 Rewrite<br/>🧠 LLM]
+        RW -->|Try Again| A
+        GEN --> END2[🎯 Final Answer]
     end
     
-    subgraph "3️⃣ OBSERVE: Evaluate Quality"
-        DOCS --> GRADE{📊 Grade Relevance<br/>🧠 LLM}
-        GRADE -->|✅ Relevant| GOOD[✓ Good Quality]
-        GRADE -->|❌ Not Relevant| BAD[✗ Poor Quality]
-    end
-    
-    subgraph "4️⃣ REASON + ACT: Self-Correct"
-        BAD -->|Learn & Improve| RW[🔄 Rewrite Query<br/>🧠 LLM]
-        RW -->|Try Again| D
-    end
-    
-    GOOD --> GEN
-    
-    style D fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
-    style GRADE fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style A fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style G fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     style VS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     style RET fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style R fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style GEN fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style END1 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style END2 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style RW fill:#ffe0b2,stroke:#e64a19,stroke-width:2px
-    style BAD fill:#ffe0b2,stroke:#e64a19,stroke-width:2px
 ```
 
-**Legend**: **🧠 LLM** = LLM reasoning/generation | **🔧 TOOL** = External tool (invoked by LLM)
+**Legend**: **🧠 LLM** = LLM reasoning/generation | **🔧 TOOL** = External tool
 
 ### The ReAct Loop
 
-The cycle flows: **1 → 2 → 3 → 4 (back to 1)** until documents are relevant:
+**1 → 2 → 3 → 4 (back to 1)** until documents are relevant:
 
-1. **🧠 LLM** analyzes question → decides to retrieve or respond directly
-2. **🔧 TOOL** searches vector store (if needed) → returns documents
-3. **🧠 LLM** grades document relevance → routes to generation or self-correction
-4. **🧠 LLM** rewrites query (if documents poor) → loops back to step 1
+1. **🧠 LLM** analyzes question → decides to retrieve or respond
+2. **🔧 TOOL** searches vector store → returns documents  
+3. **🧠 LLM** grades document relevance → routes to generation or rewrite
+4. **🧠 LLM** rewrites query if needed → loops back to step 1
 
-The agent continuously evaluates and improves until it obtains relevant documents to answer the question.
+Agent continuously evaluates and improves until it gets relevant documents.
 
-## Data Sources
+## Key Components
 
-Loads and indexes three blog posts by Lilian Weng:
-1. [LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/)
-2. [Prompt Engineering](https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/)
-3. [Adversarial Attacks on LLMs](https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/)
+**5 Graph Nodes:**
+1. **Agent**: Decides whether to retrieve or answer directly
+2. **Retrieve**: Executes document retrieval via tool
+3. **Grade**: Evaluates document relevance (relevant/not relevant)
+4. **Rewrite**: Improves query if documents aren't relevant
+5. **Generate**: Creates final answer from relevant documents
 
-## Running the Demo
+**Conditional Routing:**
+- After Agent: → Retrieve (if tool call) or Generate (if direct answer)
+- After Grade: → Generate (if relevant) or Rewrite (if not relevant)
+- After Rewrite: → Agent (try again with new query)
 
-```bash
-# Make sure Ollama is running with llama2 and nomic-embed-text models
-docker-compose up -d
+**Feedback Loop:**
+The Rewrite → Agent edge creates a self-correction loop that continues until relevant documents are found.
 
-# Build and run
-yarn start:agentic
-```
+## Configuration
 
-## Expected Output
+**Models:**
+- **LLM**: `qwen2.5:3b` (~2GB) - requires tool-calling support
+- **Embeddings**: `nomic-embed-text` (~274MB)
 
-The demo runs three test queries:
+**Data Sources:**
+- 3 blog posts from Lilian Weng
+- ~200+ chunks (500 chars each, 50 overlap)
+- 3 documents retrieved per query
 
-### Test 1: Complex Question (Requires Retrieval)
-```
-Question: "What are the types of memory in LLM agents?"
+**Parameters:**
+- Temperature: 0 (deterministic)
+- Chunk size: 500 characters
+- Retrieved docs: 3 per query
 
-Flow:
-  generateQueryOrRespond → retrieve → gradeDocuments → generate
+## Comparison
 
-Expected: Detailed answer about memory types in LLM agents
-```
+### vs Part 2B (Agents)
 
-### Test 2: Simple Greeting (No Retrieval)
-```
-Question: "Hello! How are you?"
+| Feature | Part 2B | Part 3 |
+|---------|---------|--------|
+| **Agent Type** | Simple tool-calling | ReAct with grading |
+| **Validation** | ❌ No | ✅ Grades documents |
+| **Self-Correction** | ❌ No | ✅ Rewrites queries |
+| **Graph** | Prebuilt `createReactAgent` | Custom LangGraph |
+| **Complexity** | Simple | Advanced |
+| **Use Case** | Chat with retrieval | Autonomous research |
 
-Flow:
-  generateQueryOrRespond → END
+### vs Part 2A (Chains)
 
-Expected: Direct response without retrieval
-```
+| Feature | Part 2A | Part 3 |
+|---------|---------|--------|
+| **Chat History** | ✅ Yes | ❌ No (single turn) |
+| **Retrieval** | Always 1x | 0-N (with grading) |
+| **Validation** | ❌ No | ✅ Yes |
+| **Flow** | Fixed pipeline | Conditional loops |
 
-### Test 3: Specific Question (Retrieval + Grading)
-```
-Question: "What does Lilian Weng say about chain of thought prompting?"
+## Advantages
 
-Flow:
-  generateQueryOrRespond → retrieve → gradeDocuments → generate
+✅ **Intelligent Validation**: Grades document relevance before answering  
+✅ **Self-Correction**: Automatically rewrites queries if retrieval fails  
+✅ **Adaptive**: Loops until it finds relevant information  
+✅ **Transparent**: Shows decision-making process  
+✅ **Quality Control**: Won't generate answers from irrelevant docs
 
-Expected: Answer about chain of thought from the blog posts
-```
+## Limitations
 
-## Key Differences from Part 2
+❌ **No Chat History**: Single-turn Q&A only (not conversational)  
+❌ **Slower**: Multiple retrieval + grading steps increase latency  
+❌ **Complex**: More nodes and conditional logic to debug  
+❌ **Model Dependent**: Requires good grading and rewriting from LLM
 
-| Feature | Part 2 (Chains) | Part 3 (Agentic) |
-|---------|----------------|------------------|
-| **Decision Making** | Always retrieves | Decides if retrieval needed |
-| **Validation** | No relevance checking | Grades document relevance |
-| **Self-Correction** | No query rewriting | Rewrites queries if needed |
-| **Execution Flow** | Linear chain | Conditional graph with loops |
-| **Chat History** | Yes (conversational) | No (single-turn) |
-| **Tool Calling** | No tools | Prompt-based tool calling |
+## Next Steps
 
-## Technical Details
-
-### Document Processing
-- **Chunk Size**: 500 characters
-- **Chunk Overlap**: 50 characters
-- **Retrieval**: Top 3 most similar documents
-
-### Models
-- **LLM**: llama2 (for agent reasoning, grading, rewriting, generation)
-  - Note: llama2 doesn't support native tool calling, so we use prompt-based approach
-  - Alternative: Use llama3.1+, mistral, or qwen2.5 for native tool calling support
-- **Embeddings**: nomic-embed-text (768-dimensional vectors)
-
-### Prompts
-
-**Document Grading Prompt**:
-```
-You are a grader assessing relevance of retrieved documents to a user question.
-[Documents and question provided]
-Respond with "yes" if relevant, "no" if not relevant.
-```
-
-**Query Rewriting Prompt**:
-```
-Look at the input and try to reason about the underlying semantic intent/meaning.
-Formulate an improved question that is more specific and likely to retrieve relevant information.
-```
-
-**Answer Generation Prompt**:
-```
-You are an assistant for question-answering tasks.
-Use the following pieces of retrieved context to answer the question.
-Keep the answer concise (3 sentences max).
-```
-
-## Implementation Notes
-
-### Tool Implementation (llama2 Compatible)
-
-This implementation uses **prompt-based tool calling** instead of native tool APIs for llama2 compatibility:
-
-**Why this approach?**
-- llama2 doesn't support native function/tool calling
-- The tutorial uses models with built-in tool support (like GPT-4)
-- We use prompt engineering to achieve the same functionality
-
-**How it works:**
-1. **Prompt instructions**: LLM is instructed to respond with `TOOL_CALL: retrieve_blog_posts\nQUERY: <query>` when retrieval is needed
-2. **Response parsing**: We parse the LLM's text response to detect tool calls
-3. **Manual execution**: A custom `retrieve` node executes the vector store search
-4. **Metadata storage**: Tool call info stored in `additional_kwargs` instead of `tool_calls`
-
-**Code example:**
-```typescript
-// Instruct the LLM about tool availability via prompt
-const systemPrompt = `You are a helpful assistant with access to a retrieval tool.
-
-If the user asks a question requiring information from Lilian Weng's blog posts, respond with:
-TOOL_CALL: retrieve_blog_posts
-QUERY: <your search query>
-
-Otherwise, respond normally.`;
-
-// Parse response to detect tool usage
-if (content.includes("TOOL_CALL: retrieve_blog_posts")) {
-  const query = content.match(/QUERY: (.+)/)[1];
-  // Execute retrieval manually
-}
-```
-
-This achieves the same agentic behavior as the tutorial, but works with any LLM (not just those with native tool calling).
-
-### State Management
-Uses LangGraph's `Annotation.Root` for type-safe state:
-```typescript
-const GraphState = Annotation.Root({
-  messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => x.concat(y),
-  }),
-});
-```
-
-Messages accumulate throughout the graph execution, allowing nodes to access the full conversation history.
-
-## Potential Enhancements
-
-1. **Max Iterations**: Add a counter to prevent infinite rewriting loops
-2. **Streaming**: Stream responses as they're generated
-3. **Multi-tool Support**: Add more tools (web search, calculator, etc.)
-4. **Conversation Memory**: Combine with Part 2's chat history
-5. **Parallel Retrieval**: Retrieve from multiple sources simultaneously
-6. **Confidence Scores**: Add numerical relevance scores instead of yes/no
-7. **Human-in-the-Loop**: Allow human approval before tool execution
+**Combine Part 2 + Part 3**: Add chat history to the ReAct framework for conversational agentic RAG with validation and self-correction.
 
 ## Resources
 
+- [LangChain Agentic RAG Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag)
+- [ReAct Paper](https://arxiv.org/abs/2210.03629)
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-- [Agentic RAG Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag)
-- [LangGraph Conditional Edges](https://langchain-ai.github.io/langgraph/how-tos/branching/)
-- [Tool Calling with LangChain](https://js.langchain.com/docs/modules/agents/tools/)
-
+- [Corrective RAG (CRAG)](https://arxiv.org/abs/2401.15884)

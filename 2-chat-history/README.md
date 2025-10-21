@@ -1,90 +1,51 @@
 # Part 2: Conversational RAG with Chat History
 
-A RAG system that maintains conversation context across multiple turns. This part implements **both approaches** from the [LangChain tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history/):
+A RAG system that maintains conversation context across multiple turns. Implements **both approaches** from the [LangChain tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history/):
 
 1. **Chains Approach** - Predictable, one retrieval per question
-2. **Agents Approach** - Flexible, multiple retrievals per question
+2. **Agents Approach** - Flexible, agent decides when to retrieve
 
 ## Two Approaches
 
 ### Approach A: Chains (index-chains.ts)
-- **Predictable execution**: Exactly ONE retrieval step per question
-- **History-aware retrieval**: Reformulates questions based on chat history
-- **Uses**: `createHistoryAwareRetriever` and `createRetrievalChain`
-- **Best for**: Standard Q&A where one retrieval is sufficient
+- **Execution**: Exactly ONE retrieval per question
+- **Uses**: `createHistoryAwareRetriever` + `createRetrievalChain`
+- **Model**: `llama2`
+- **Best for**: Standard Q&A with predictable flow
 
 ### Approach B: Agents (index-agents.ts)
-- **Flexible execution**: Agent can make MULTIPLE retrieval calls per question
-- **Iterative reasoning**: Agent decides when it has enough information
-- **Uses**: LangGraph agent with tool calling loop
-- **Best for**: Complex questions requiring multiple pieces of information
+- **Execution**: 0 to N retrievals (agent decides)
+- **Uses**: LangGraph `createReactAgent` with native tool calling
+- **Model**: `qwen2.5:3b` (requires tool-calling support)
+- **Best for**: Complex questions needing multiple pieces of information
 
 ## Running Part 2
 
+**Prerequisites for Agents:**
+```bash
+docker exec ollama-server ollama pull qwen2.5:3b
+# Alternative models: llama3.1, mistral, etc.
+```
+
+**Run:**
 ```bash
 # Chains approach (one retrieval per question)
 yarn start:chat
 
-# Agents approach (multiple retrievals per question)
+# Agents approach (flexible retrievals)
 yarn start:chat:agents
 ```
 
 ## What They Do
 
-### Chains Approach (index-chains.ts)
-Runs a 3-turn conversation with **one retrieval** per question:
+Both run a 3-turn conversation:
+1. "What is Task Decomposition?"
+2. "What are common ways of doing it?" ← Understands "it" = task decomposition
+3. "Can you compare the different approaches and tell me which one is most commonly used?"
 
-1. **Turn 1**: "What is Task Decomposition?"
-2. **Turn 2**: "What are common ways of doing it?" (understands "it" = task decomposition)
-3. **Turn 3**: "Can you give me specific examples?" (maintains full conversation context)
-
-**Expected time:** ~180-240s (3 questions × ~60-80s each)
-
-### Agents Approach (index-agents.ts)
-Runs a 3-turn conversation where agent can make **multiple retrievals**:
-
-1. **Turn 1**: "What is Task Decomposition?" (may retrieve once)
-2. **Turn 2**: "What are common ways of doing it?" (may retrieve once)
-3. **Turn 3**: "Can you compare the different approaches and tell me which one is most commonly used?" (may retrieve multiple times to gather comprehensive information)
-
-**Expected time:** ~200-300s (varies based on agent decisions)
-
-## Example Conversation
-
-```
-======================================================================
-🚀 STARTING CONVERSATIONAL RAG SESSION
-======================================================================
-
-👤 Human: What is Task Decomposition?
-----------------------------------------------------------------------
-🤖 AI: Task decomposition involves breaking down complex tasks into smaller,
-      more manageable steps. This technique helps agents handle complicated
-      problems by addressing them systematically...
-----------------------------------------------------------------------
-⏱️  Time: 67.2s
-======================================================================
-
-👤 Human: What are common ways of doing it?
-----------------------------------------------------------------------
-[System internally reformulates to: "What are common ways of doing task decomposition?"]
-🤖 AI: Based on our previous discussion, common methods include Chain of Thought (CoT),
-      simple prompting like "Steps for XYZ", and task-specific instructions. CoT
-      encourages the model to think step-by-step...
-----------------------------------------------------------------------
-⏱️  Time: 71.5s
-======================================================================
-
-👤 Human: Can you give me specific examples?
-----------------------------------------------------------------------
-[System reformulates with full context]
-🤖 AI: Specific examples include using prompts like "What are the subgoals for
-      achieving XYZ?" or providing task-specific instructions such as "Write a
-      story outline" for creative writing tasks...
-----------------------------------------------------------------------
-⏱️  Time: 68.8s
-======================================================================
-```
+**Time:**
+- Chains: ~180-240s (3 questions × ~60-80s each, predictable)
+- Agents: ~150-300s (varies based on agent decisions)
 
 ## Architecture
 
@@ -93,50 +54,48 @@ Runs a 3-turn conversation where agent can make **multiple retrievals**:
 ```mermaid
 graph LR
     subgraph "Chat History"
-        A[💬 Previous Messages] 
+        A[💬 Previous Messages]
         B[🆕 New Question]
     end
     
-    subgraph "Question Reformulation"
-        A --> C[🔄 History-Aware Retriever]
-        B --> C
-        C -->|Reformulate| D[🤖 LLM]
-        D --> E[📝 Standalone Question]
+    subgraph "Reformulation"
+        B --> C[🔄 History-Aware Retriever]
+        A --> C
+        C -->|Standalone Question| D[📝 Reformulated Query]
     end
     
-    subgraph "Document Retrieval"
-        E -->|Search| F[(Vector Store)]
-        F --> G[📋 Retrieved Docs]
+    subgraph "Retrieval"
+        D -->|Search| E[(📚 Vector Store)]
+        E --> F[📋 Retrieved Docs]
     end
     
-    subgraph "Answer Generation"
-        G --> H[📝 QA Chain]
-        A --> H
-        B --> H
-        H --> I[🤖 LLM]
-        I --> J[✅ Answer]
+    subgraph "Generation"
+        F --> G[💬 QA Chain]
+        B --> G
+        A --> G
+        G --> H[🤖 LLM]
+        H --> I[✅ Answer]
     end
     
-    subgraph "State Update"
-        B --> K[💾 Add to History]
-        J --> K
-        K --> L[📚 Updated History]
+    subgraph "Update"
+        I --> J[💾 Update History]
+        B --> J
     end
     
-    L -.->|Next Turn| A
+    J -.->|Next Turn| A
     
-    style B fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
-    style D fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style F fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style I fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style D fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style E fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style H fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style I fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style J fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
-**Key**: Linear flow, exactly ONE retrieval per question.
+**Flow**: `Question → Reformulate → Retrieve (1x) → Answer`
 
 ---
 
-### Agents Approach (Iterative Loop)
+### Agents Approach (Dynamic Loop)
 
 ```mermaid
 graph LR
@@ -154,7 +113,7 @@ graph LR
     
     subgraph "Document Retrieval"
         D --> E[🔍 Retrieve Node]
-        E -->|Search| G[(Vector Store)]
+        E -->|Search| G[(📚 Vector Store)]
         G --> F
     end
     
@@ -176,27 +135,14 @@ graph LR
     style H fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
-**Key**: Agent can loop through retrieval 0-N times until it decides it has enough information. The loop between "Tool Results" and "Agent Node" allows multiple retrievals.
+**Flow**: `Question → Agent → [Retrieve → Agent]* → Answer` (loops as needed)
 
-**Major Difference**: 
-- **Chains**: `Question → Reformulate → Retrieve (1x) → Answer`
-- **Agents**: `Question → Agent → [Retrieve → Agent]* → Answer` (loop repeats as needed)
+## Key Implementation
 
-## Key Components
+### Chains Approach
 
-### Chains Approach (index-chains.ts)
-
-#### 1. History-Aware Retriever
-
-Reformulates questions based on chat history before retrieving documents.
-
+**1. History-Aware Retriever**
 ```typescript
-const contextualizeQPrompt = ChatPromptTemplate.fromMessages([
-  ["system", contextualizeQSystemPrompt],
-  new MessagesPlaceholder("chat_history"),
-  ["human", "{input}"],
-]);
-
 const historyAwareRetriever = await createHistoryAwareRetriever({
   llm,
   retriever,
@@ -204,38 +150,7 @@ const historyAwareRetriever = await createHistoryAwareRetriever({
 });
 ```
 
-**System Prompt:**
-> "Given a chat history and the latest user question which might reference context in the chat history, formulate a standalone question which can be understood without the chat history. Do NOT answer the question, just reformulate it if needed."
-
-**Why This Matters:**
-- Turn 2 input: "What are common ways of doing it?"
-- Reformulated: "What are common ways of doing task decomposition?"
-- Retrieval now works correctly without chat context
-
-#### 2. Question-Answering Chain
-
-Generates answers using retrieved documents and chat history.
-
-```typescript
-const qaPrompt = ChatPromptTemplate.fromMessages([
-  ["system", qaSystemPrompt],
-  new MessagesPlaceholder("chat_history"),
-  ["human", "{input}"],
-]);
-
-const questionAnswerChain = await createStuffDocumentsChain({
-  llm,
-  prompt: qaPrompt,
-});
-```
-
-**System Prompt:**
-> "You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise."
-
-#### 3. Retrieval Chain
-
-Orchestrates the complete RAG pipeline with history.
-
+**2. RAG Chain**
 ```typescript
 const ragChain = await createRetrievalChain({
   retriever: historyAwareRetriever,
@@ -243,13 +158,7 @@ const ragChain = await createRetrievalChain({
 });
 ```
 
-Execution flow:
-1. Reformulate question using history
-2. Retrieve documents using reformulated question
-3. Generate answer using documents + history + original question
-
-#### 4. Chat History Management
-
+**3. Chat History**
 ```typescript
 const chatHistory: BaseMessage[] = [];
 
@@ -259,206 +168,109 @@ async function askQuestion(question: string) {
     chat_history: chatHistory,
   });
   
-  // Update history after each turn
   chatHistory.push(new HumanMessage(question));
   chatHistory.push(new AIMessage(result.answer));
-  
-  return result.answer;
 }
 ```
 
-**History Structure:**
-```
-Turn 1: [HumanMessage("What is Task Decomposition?"), AIMessage("Task decomposition is...")]
-Turn 2: [...previous..., HumanMessage("What are common ways?"), AIMessage("Common methods include...")]
-Turn 3: [...all previous..., HumanMessage("Give examples?"), AIMessage("Examples include...")]
-```
+---
 
-### Agents Approach (index-agents.ts)
+### Agents Approach
 
-#### 1. Agent Node
-Makes autonomous decisions about retrieval:
+Following the [official tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history/#agents).
 
+**1. Create Retriever Tool**
 ```typescript
-async function agent(state) {
-  const systemPrompt = `You have access to a retrieval tool.
-  If you need information, respond with:
-  TOOL_CALL: retrieve
-  QUERY: <your search query>
-  
-  You can call the tool multiple times. When you have enough info, answer.`;
-  
-  const response = await llm.invoke([systemPrompt, ...messages]);
-  
-  if (response.content.includes("TOOL_CALL: retrieve")) {
-    // Agent wants to retrieve
-    return { messages: [AIMessage with tool_call] };
-  } else {
-    // Agent has final answer
-    return { messages: [response] };
+import { createRetrieverTool } from "langchain/tools/retriever";
+
+const tool = createRetrieverTool(retriever, {
+  name: "retrieve_blog_posts",
+  description: "Search and return information about LLM agents..."
+});
+```
+
+**2. Create ReAct Agent**
+```typescript
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+
+const agent = createReactAgent({ 
+  llm,  // qwen2.5:3b or similar with tool-calling support
+  tools: [tool],
+});
+```
+
+**3. Stream Execution**
+```typescript
+const chatHistory: BaseMessage[] = [];
+
+async function askQuestion(question: string) {
+  for await (const step of await agent.stream(
+    { messages: [...chatHistory, new HumanMessage(question)] },
+    { streamMode: "values" }
+  )) {
+    // Process agent steps: tool calls, results, final answer
   }
-}
-```
-
-**Key Features:**
-- Examines full chat history for context
-- Decides when to retrieve (0, 1, or multiple times)
-- Loops until satisfied with information gathered
-
-#### 2. Retrieve Node
-Executes retrieval when agent decides to:
-
-```typescript
-async function executeRetrieval(state) {
-  const query = lastMessage.additional_kwargs.tool_query;
-  const docs = await retriever.invoke(query);
-  const context = docs.map(doc => doc.pageContent).join("\n\n");
   
-  return { messages: [ToolMessage(context)] };
+  chatHistory.push(new HumanMessage(question));
+  chatHistory.push(new AIMessage(finalAnswer));
 }
 ```
 
-#### 3. Graph with Conditional Routing
-
-```typescript
-const graph = new StateGraph(AgentState)
-  .addNode("agent", agent)
-  .addNode("retrieve", executeRetrieval)
-  .addEdge(START, "agent")
-  .addConditionalEdges("agent", shouldContinue, {
-    retrieve: "retrieve",  // If tool call
-    end: END,             // If final answer
-  })
-  .addEdge("retrieve", "agent")  // Back to agent after retrieval
-  .compile();
-```
-
-**Agent Loop:**
-```
-START → Agent → (needs info?) → Retrieve → Agent → (needs more?) → Retrieve → Agent → (satisfied) → END
-```
-
-The agent keeps looping through retrieval until it has enough information to answer completely.
-
-## Implementation Details
-
-### Reformulation Examples
-
-| User Input | Reformulated Query |
-|------------|-------------------|
-| "What is Task Decomposition?" | "What is Task Decomposition?" (no change) |
-| "What are common ways of doing it?" | "What are common ways of doing task decomposition?" |
-| "Can you give me specific examples?" | "Can you give me specific examples of task decomposition methods?" |
-| "How does it help agents?" | "How does task decomposition help LLM agents?" |
-
-### Message Placeholders
-
-`MessagesPlaceholder` allows dynamic insertion of message arrays:
-
-```typescript
-new MessagesPlaceholder("chat_history")
-// At runtime, replaced with:
-[
-  HumanMessage("What is Task Decomposition?"),
-  AIMessage("Task decomposition is..."),
-  HumanMessage("What are common ways?"),
-  // ... etc
-]
-```
-
-### Chain Composition
-
-```
-User Question
-    ↓
-createHistoryAwareRetriever
-    ├─ Uses: LLM + retriever + chat_history
-    ├─ Output: Reformulated question
-    ↓
-Vector Store Search
-    ├─ Uses: Reformulated question
-    ├─ Output: Retrieved documents
-    ↓
-createStuffDocumentsChain
-    ├─ Uses: LLM + documents + chat_history + original question
-    ├─ Output: Final answer
-    ↓
-Update Chat History
-    ├─ Append: HumanMessage + AIMessage
-```
-
-## Configuration
-
-### Models
-- **LLM**: `llama2` (~3.8GB)
-- **Embeddings**: `nomic-embed-text` (~274MB)
-
-### Parameters
-- **Chunk Size**: 1000 characters
-- **Chunk Overlap**: 200 characters
-- **Temperature**: 0 (deterministic)
-- **Max Response**: 3 sentences (chains) / varies (agents)
+**Agent automatically:**
+- Decides when to call retrieval tool
+- Can make 0-N tool calls based on information needs
+- Maintains chat history for context
 
 ## Comparison
 
-### Part 2 Approaches Compared
-
 | Feature | Chains (2A) | Agents (2B) |
 |---------|-------------|-------------|
-| **Retrievals per question** | Exactly 1 | 0 to N (agent decides) |
+| **Retrievals/question** | Exactly 1 | 0 to N |
 | **Execution flow** | Fixed pipeline | Dynamic loop |
 | **Predictability** | High | Variable |
-| **Best for** | Standard Q&A | Complex, multi-part questions |
-| **Implementation** | LangChain chains | LangGraph + agent |
-| **Speed** | Faster (fixed steps) | Slower (iterative) |
+| **Speed** | ~60-80s/question | Varies |
+| **Model** | llama2 | qwen2.5:3b (tool-calling) |
+| **Best for** | Standard Q&A | Complex questions |
+| **Implementation** | LangChain chains | LangGraph ReAct agent |
 
-### vs Part 1
+## Configuration
 
-| Feature | Part 1 | Part 2 (Both) |
-|---------|--------|--------|
-| **Conversation** | ❌ No | ✅ Yes |
-| **Question Reformulation** | ❌ No | ✅ Yes |
-| **Chat History** | ❌ No | ✅ Yes (BaseMessage[]) |
-| **Complexity** | Simple | Moderate |
+**Models:**
+- **LLM (Chains)**: `llama2` (~3.8GB)
+- **LLM (Agents)**: `qwen2.5:3b` (~2GB)
+- **Embeddings**: `nomic-embed-text` (~274MB)
 
-## Advantages
+**Parameters:**
+- Chunk Size: 1000 characters
+- Chunk Overlap: 200 characters
+- Temperature: 0 (deterministic)
+- Retrieved Docs: 3 per query
 
-### Chains Approach (index-chains.ts)
-✅ **Context Awareness**: Understands pronouns and references to previous turns  
-✅ **Automatic Reformulation**: Handles ambiguous follow-up questions  
-✅ **Predictable**: Fixed execution path, easy to debug  
-✅ **Fast**: Single retrieval per question (~60-80s per turn)  
-✅ **Simple**: Uses battle-tested LangChain chains  
+## Advantages & Limitations
 
-### Agents Approach (index-agents.ts)
-✅ **Flexible Retrieval**: Can retrieve 0, 1, or many times as needed  
-✅ **Thorough**: Gathers all necessary information before answering  
-✅ **Complex Questions**: Handles multi-part questions requiring synthesis  
-✅ **Adaptive**: Adjusts behavior based on question complexity  
-✅ **Context Aware**: Maintains chat history like chains
+### Chains
+✅ Fast and predictable  
+✅ Simple implementation  
+✅ Easy to debug  
+❌ Always retrieves once (even if unnecessary)  
+❌ No validation of retrieved docs  
+❌ No self-correction
 
-## Limitations
+### Agents
+✅ Flexible retrieval (0-N times)  
+✅ Handles complex questions  
+✅ Context-aware decisions  
+❌ Slower (multiple retrievals)  
+❌ Less predictable  
+❌ Requires tool-calling model
 
-### Chains Approach (index-chains.ts)
-1. **Always Retrieves Once**: Can't skip retrieval or retrieve multiple times
-2. **No Validation**: Doesn't check if retrieved docs are relevant
-3. **Linear Flow**: No conditional logic or loops
-4. **No Self-Correction**: Can't rewrite queries if retrieval fails
-
-### Agents Approach (index-agents.ts)
-1. **Slower**: Multiple retrievals increase latency (varies by question)
-2. **Unpredictable**: Agent decisions vary, harder to debug
-3. **LLM-Dependent**: Quality depends on agent making good decisions
-4. **Prompt Engineering**: Requires careful prompt design for llama2
-
-### Both Approaches
-- **Growing History**: History grows unbounded (memory issue for long conversations)
-- **Context Window**: Very long conversations may exceed LLM context limit
+### Both
+❌ History grows unbounded (memory concern)  
+❌ May exceed context window in long conversations
 
 ## Memory Management
 
-For long conversations, consider truncating history:
-
+For long conversations:
 ```typescript
 // Keep only last N messages
 const MAX_HISTORY = 10;
@@ -467,26 +279,12 @@ if (chatHistory.length > MAX_HISTORY) {
 }
 ```
 
-Or use a summarization approach:
-```typescript
-// Summarize old messages periodically
-if (chatHistory.length > 20) {
-  const summary = await summarizeHistory(chatHistory.slice(0, 10));
-  chatHistory = [
-    new HumanMessage(`Previous conversation summary: ${summary}`),
-    ...chatHistory.slice(10)
-  ];
-}
-```
-
 ## Next Steps
 
-- **Part 3**: Adds intelligent decision-making, document grading, and self-correction
+**Part 3** adds intelligent decision-making, document grading, and self-correction loops.
 
 ## Resources
 
 - [LangChain Q&A with Chat History Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history)
 - [History-Aware Retriever](https://js.langchain.com/docs/how_to/qa_chat_history_how_to/)
-- [Message History](https://js.langchain.com/docs/how_to/message_history/)
-- [Chat History Management Best Practices](https://js.langchain.com/docs/concepts/chat_history/)
-
+- [ReAct Agents](https://js.langchain.com/docs/how_to/migrate_agent/)

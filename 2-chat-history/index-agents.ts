@@ -3,25 +3,29 @@ import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
-import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
-import { AIMessage, BaseMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
-import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
-import { prettyPrint } from "../utils/prettyPrint";
+import { createRetrieverTool } from "langchain/tools/retriever";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import { logSection, logQuestion, logDivider, logTime, logSeparator, logSummary } from "../utils/logger.js";
 
 // ============================================================================
 // PART 2B: CONVERSATIONAL RAG WITH AGENTS
 // ============================================================================
-// This implementation uses an agent that can make multiple retrieval calls
-// per question, deciding how many times to retrieve based on the complexity.
+// Following the official LangChain tutorial approach
+// Uses a model with native tool-calling support (qwen2.5)
 // ============================================================================
 
-console.log("\n" + "=".repeat(70));
-console.log("🔧 Part 2B: Conversational RAG with Agents");
-console.log("=".repeat(70));
+logSection("🔧 Part 2B: Conversational RAG with Agents");
+
+// ============================================================================
+// LLM WITH TOOL CALLING SUPPORT
+// ============================================================================
+// Note: llama2 doesn't support tool calling, so we use qwen2.5
+// Other options: llama3.1, mistral, qwen2.5, etc.
 
 const llm = new ChatOllama({
   baseUrl: "http://localhost:11434",
-  model: "llama2",
+  model: "qwen2.5:3b", // Model with tool-calling support
   temperature: 0,
 });
 
@@ -50,213 +54,94 @@ const textSplitter = new RecursiveCharacterTextSplitter({
 const splits = await textSplitter.splitDocuments(docs);
 
 const vectorStore = await MemoryVectorStore.fromDocuments(splits, embeddings);
-const retriever = vectorStore.asRetriever();
+const retriever = vectorStore.asRetriever({ k: 3 });
 
 console.log(`✓ Indexed ${splits.length} chunks\n`);
 
 // ============================================================================
-// DEFINE RETRIEVER TOOL
+// CREATE RETRIEVER TOOL (Following Tutorial)
 // ============================================================================
 
-const toolDefinition = {
-  name: "retrieve",
-  description:
-    "Search for information about LLM agents, task decomposition, and autonomous agents. Use this when you need specific information from the knowledge base.",
-};
-
-// ============================================================================
-// GRAPH STATE DEFINITION
-// ============================================================================
-
-const AgentState = Annotation.Root({
-  messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => x.concat(y),
-  }),
+const tool = createRetrieverTool(retriever, {
+  name: "retrieve_blog_posts",
+  description: 
+    "Search and return information about LLM agents, autonomous agents, and task decomposition from Lilian Weng's blog.",
 });
 
-// ============================================================================
-// AGENT NODE - DECIDES TO RETRIEVE OR RESPOND
-// ============================================================================
-
-async function agent(state: typeof AgentState.State) {
-  const { messages } = state;
-  
-  // Create system prompt with chat history
-  const systemPrompt = `You are a helpful assistant with access to a retrieval tool for information about LLM agents.
-
-Tool available: retrieve
-Description: ${toolDefinition.description}
-
-If you need to retrieve information, respond with:
-TOOL_CALL: retrieve
-QUERY: <your search query>
-
-You can call the tool multiple times if needed to gather all necessary information.
-When you have enough information, provide a complete answer to the user.
-
-Chat history is provided for context.`;
-
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", systemPrompt],
-    new MessagesPlaceholder("messages"),
-  ]);
-
-  const promptedMessages = await prompt.invoke({ messages });
-  const response = await llm.invoke(promptedMessages.toChatMessages());
-  const content = response.content.toString();
-  
-  // Check if model wants to use the tool
-  if (content.includes("TOOL_CALL: retrieve")) {
-    const queryMatch = content.match(/QUERY: (.+)/);
-    const query = queryMatch ? queryMatch[1].trim() : "";
-    
-    const aiMessage = new AIMessage({
-      content: "",
-      additional_kwargs: {
-        tool_call: true,
-        tool_query: query,
-      },
-    });
-    
-    return { messages: [aiMessage] };
-  } else {
-    return { messages: [response] };
-  }
-}
+const tools = [tool];
 
 // ============================================================================
-// RETRIEVE NODE - EXECUTES RETRIEVAL
+// CREATE REACT AGENT (Following Tutorial)
 // ============================================================================
 
-async function executeRetrieval(state: typeof AgentState.State) {
-  const { messages } = state;
-  const lastMessage = messages[messages.length - 1];
-  
-  if (lastMessage instanceof AIMessage && lastMessage.additional_kwargs?.tool_call) {
-    const query = lastMessage.additional_kwargs.tool_query as string;
-    
-    const docs = await retriever.invoke(query);
-    const context = docs.map(doc => doc.pageContent).join("\n\n");
-    
-    const toolMessage = new ToolMessage({
-      content: `Retrieved information:\n${context}`,
-      tool_call_id: "retrieve",
-    });
-    
-    return { messages: [toolMessage] };
-  }
-  
-  return { messages: [] };
-}
+// @ts-expect-error - Type inference issue with createReactAgent
+const agent = createReactAgent({ llm, tools });
+
+console.log("✓ Agent created\n");
 
 // ============================================================================
-// ROUTING FUNCTIONS
-// ============================================================================
-
-function shouldContinue(state: typeof AgentState.State) {
-  const { messages } = state;
-  const lastMessage = messages[messages.length - 1];
-
-  // If agent wants to use tool, go to retrieve
-  if (lastMessage instanceof AIMessage && lastMessage.additional_kwargs?.tool_call) {
-    return "retrieve";
-  }
-  // Otherwise end (agent has final answer)
-  return "end";
-}
-
-// ============================================================================
-// BUILD THE GRAPH
-// ============================================================================
-
-const graph = new StateGraph(AgentState)
-  .addNode("agent", agent)
-  .addNode("retrieve", executeRetrieval)
-  .addEdge(START, "agent")
-  .addConditionalEdges("agent", shouldContinue, {
-    retrieve: "retrieve",
-    end: END,
-  })
-  .addEdge("retrieve", "agent") // After retrieval, go back to agent
-  .compile();
-
-console.log("✓ Agent graph compiled\n");
-
-// ============================================================================
-// CHAT HISTORY MANAGEMENT
+// INTERACTIVE SESSION
 // ============================================================================
 
 const chatHistory: BaseMessage[] = [];
 
 async function askQuestion(question: string) {
-  console.log("\n" + "=".repeat(70));
-  console.log(`👤 Human: ${question}`);
-  console.log("-".repeat(70));
-
+  logQuestion(question);
+  
   const startTime = Date.now();
   
-  // Add user question to messages
-  const userMessage = new HumanMessage(question);
-  const initialMessages = [...chatHistory, userMessage];
+  // Build messages: chat history + new question
+  const messages = [...chatHistory, new HumanMessage(question)];
   
-  // Stream the agent's execution
-  let finalState: any = { messages: [] };
-  console.log("\n🔄 Agent execution:\n");
+  // Stream the agent execution
+  console.log("🔄 Agent execution:\n");
   
-  for await (const state of await graph.stream({ messages: initialMessages })) {
-    const stateValue = Object.values(state)[0] as any;
-    // Show each new message
-    const lastMsg = stateValue.messages[stateValue.messages.length - 1];
-    if (lastMsg) {
-      prettyPrint(lastMsg);
+  let finalAnswer = "";
+  
+  for await (const step of await agent.stream(
+    { messages },
+    { streamMode: "values" }
+  )) {
+    const lastMessage = step.messages[step.messages.length - 1];
+    
+    // Log each step
+    if (lastMessage._getType() === "ai") {
+      const aiMsg = lastMessage as AIMessage;
+      
+      if (aiMsg.content) {
+        console.log(`🤖 AI: ${aiMsg.content}`);
+        finalAnswer = aiMsg.content.toString();
+      } else if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
+        const toolCall = aiMsg.tool_calls[0];
+        console.log(`🔧 Tool Call: ${toolCall.name}`);
+        console.log(`   Query: "${toolCall.args.query}"`);
+      }
+    } else if (lastMessage._getType() === "tool") {
+      console.log(`📥 Tool Result: Retrieved ${lastMessage.content.toString().length} chars`);
     }
-    finalState = stateValue;
+    console.log();
   }
   
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  const duration = (Date.now() - startTime) / 1000;
+  logDivider();
+  logTime(duration);
+  logSeparator();
   
-  // Get the final answer (last message that's not a tool message)
-  const messages = finalState.messages;
-  let answer = "";
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i] instanceof AIMessage && messages[i].content) {
-      answer = messages[i].content.toString();
-      break;
-    }
-  }
-  
-  console.log(`🤖 AI: ${answer}`);
-  console.log("-".repeat(70));
-  console.log(`⏱️  Time: ${duration}s`);
-  console.log("=".repeat(70));
-
-  // Update chat history with user message and AI response
+  // Update chat history (only Human/AI messages)
   chatHistory.push(new HumanMessage(question));
-  chatHistory.push(new AIMessage(answer));
-
-  return answer;
+  chatHistory.push(new AIMessage(finalAnswer));
+  
+  return finalAnswer;
 }
 
 // ============================================================================
-// EXECUTION: CONVERSATIONAL INTERACTION WITH AGENT
+// RUN SESSION
 // ============================================================================
 
-console.log("\n" + "=".repeat(70));
-console.log("🚀 STARTING AGENTIC CONVERSATIONAL RAG SESSION");
-console.log("=".repeat(70));
+logSection("🚀 STARTING AGENTIC CONVERSATIONAL RAG SESSION");
 
-// Simple question
 await askQuestion("What is Task Decomposition?");
-
-// Follow-up using history
 await askQuestion("What are common ways of doing it?");
-
-// Complex question that may require multiple retrievals
 await askQuestion("Can you compare the different approaches and tell me which one is most commonly used?");
 
-console.log("\n" + "=".repeat(70));
-console.log("📊 SUMMARY");
-console.log("=".repeat(70));
-console.log(`💾 Total messages in history: ${chatHistory.length}`);
-console.log("=".repeat(70));
-
+logSummary(chatHistory.length);

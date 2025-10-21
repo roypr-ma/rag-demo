@@ -28,6 +28,9 @@ docker-compose up -d
 docker exec ollama-server ollama pull llama2
 docker exec ollama-server ollama pull nomic-embed-text
 
+# For Part 2B (Agents) and Part 3 (Agentic RAG) - requires tool-calling support
+docker exec ollama-server ollama pull qwen2.5:3b
+
 # 5. Build
 yarn build
 
@@ -53,7 +56,7 @@ rag-langchain/
 │   ├── index.ts              # Agentic RAG with LangGraph
 │   └── README.md             # Detailed Part 3 docs
 ├── utils/
-│   └── prettyPrint.ts        # Message formatting utility
+│   └── logger.ts             # Logging utilities
 ├── docker-compose.yml        # Ollama service
 ├── package.json
 └── README.md                 # This file
@@ -96,6 +99,7 @@ yarn start:chat:agents  # ~200-300s (varies)
 - **Dynamic execution**: 0 to N retrievals per question
 - **Adaptive**: Agent decides when it has enough info
 - **Thorough**: Gathers multiple pieces of information
+- **Requires**: Model with tool-calling support (qwen2.5, llama3.1, mistral)
 
 **What you'll learn:**
 - Chat history management
@@ -122,12 +126,11 @@ Q3: "Compare the approaches"            ← Agent may retrieve multiple times
 yarn start:agentic  # ~90-180s
 ```
 
-**What you'll learn:**
 - **ReAct framework** (Reasoning + Acting pattern)
-- Conditional graph execution with feedback loops
 - Document relevance grading after retrieval
 - Query rewriting based on observations
 - Self-correction through continuous evaluation
+- **Requires**: Model with tool-calling support (qwen2.5, llama3.1, mistral)
 
 **The ReAct Cycle:**
 1. **Reason**: "Should I retrieve information?"
@@ -135,7 +138,7 @@ yarn start:agentic  # ~90-180s
 3. **Observe**: Grade document quality
 4. **Learn**: Rewrite query if needed, try again
 
-**Why ReAct?** Unlike Part 2B (agent with tools), Part 3 implements true ReAct where the agent evaluates results after each action and adapts its strategy accordingly.
+**Why ReAct?** Unlike Part 2B (simple agent), Part 3 validates retrieved documents and self-corrects with query rewriting.
 
 📄 **[Read detailed Part 3 documentation →](3-agentic-rag/README.md)**
 
@@ -146,7 +149,8 @@ yarn start:agentic  # ~90-180s
 ### Models
 
 **Current Configuration:**
-- **LLM**: `llama2` (~3.8GB) - Good reasoning, balanced performance
+- **LLM (Part 1, 2A)**: `llama2` (~3.8GB) - Good reasoning, balanced performance
+- **LLM (Part 2B, 3)**: `qwen2.5:3b` (~2GB) - Tool-calling support required
 - **Embeddings**: `nomic-embed-text` (~274MB) - 768-dimensional vectors
 
 ### Alternative Models

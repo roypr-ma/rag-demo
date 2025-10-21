@@ -7,6 +7,7 @@ import { Annotation, StateGraph } from "@langchain/langgraph";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { logSection, logTime, logSeparator } from "../utils/logger.js";
 
 // ============================================================================
 // PART 1: BASIC RAG (Retrieval-Augmented Generation)
@@ -107,22 +108,18 @@ console.log("✓ RAG graph compiled");
 // EXECUTION
 // ============================================================================
 
-console.log("\n" + "=".repeat(70));
-console.log("🚀 RUNNING BASIC RAG QUERY (Part 1)");
-console.log("=".repeat(70));
+logSection("🚀 RUNNING BASIC RAG QUERY (Part 1)");
 
 let inputs = { question: "What is Task Decomposition?" };
 console.log(`\n❓ Question: "${inputs.question}"\n`);
 
 const startTime = Date.now();
 const result = await graph.invoke(inputs);
-const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+const duration = (Date.now() - startTime) / 1000;
 
-console.log("\n" + "=".repeat(70));
-console.log("📝 ANSWER:");
-console.log("=".repeat(70));
+logSection("📝 ANSWER:");
 console.log(result.answer);
-console.log("\n" + "=".repeat(70));
-console.log(`⏱️  Time: ${duration}s`);
-console.log("=".repeat(70));
+console.log();
+logTime(duration);
+logSeparator();
 
