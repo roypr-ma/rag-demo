@@ -124,6 +124,12 @@ graph LR
     end
     
     L -.->|Next Turn| A
+    
+    style B fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style D fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style F fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style I fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style J fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
 **Key**: Linear flow, exactly ONE retrieval per question.
@@ -133,24 +139,24 @@ graph LR
 ### Agents Approach (Iterative Loop)
 
 ```mermaid
-graph TD
-    A[🆕 Question + 💬 Chat History] --> B{🤖 Agent Node}
+graph LR
+    START[🆕 Question + 💬 Chat History] --> AGENT{🤖 Agent Node}
     
-    B -->|Needs Info| C[📝 Generate Tool Call]
-    C --> D[🔍 Retrieve Node]
-    D -->|Execute Search| E[(Vector Store)]
-    E --> F[📋 Retrieved Docs]
-    F --> G[💬 Add to Messages]
-    G --> B
+    AGENT -->|Needs Info| TOOL[📝 Generate Tool Call]
+    TOOL --> RETRIEVE[🔍 Retrieve Node]
+    RETRIEVE --> VECTOR[(Vector Store)]
+    VECTOR --> DOCS[📋 Retrieved Docs]
+    DOCS --> MESSAGES[💬 Add to Messages]
+    MESSAGES --> AGENT
     
-    B -->|Has Enough Info| H[✅ Final Answer]
+    AGENT -->|Has Enough Info| ANSWER[✅ Final Answer]
     
-    H --> I[💾 Update Chat History]
-    I --> J[📚 Ready for Next Turn]
+    ANSWER --> UPDATE[💾 Update Chat History]
+    UPDATE --> READY[📚 Ready for Next Turn]
     
-    style B fill:#f9f,stroke:#333,stroke-width:4px
-    style D fill:#bbf,stroke:#333,stroke-width:2px
-    style G stroke-dasharray: 5 5
+    style AGENT fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style RETRIEVE fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style ANSWER fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
 **Key**: Agent can loop through retrieval 0-N times until it decides it has enough information.

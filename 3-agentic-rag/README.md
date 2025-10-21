@@ -92,20 +92,29 @@ Part 3 implements the **ReAct (Reasoning + Acting) pattern** through a continuou
 
 ### Graph Structure (ReAct Flow)
 
+```mermaid
+graph TD
+    START[🚀 START] --> A[🤔 generateQueryOrRespond<br/>REASON]
+    
+    A -->|No retrieval needed| END1[✅ END]
+    A -->|Needs information| B[🔍 retrieve<br/>ACT]
+    
+    B --> C[📊 gradeDocuments<br/>OBSERVE]
+    
+    C -->|Documents relevant| D[✍️ generate<br/>ACT]
+    C -->|Not relevant| E[🔄 rewrite<br/>REASON + ACT]
+    
+    D --> END2[✅ END]
+    E --> A
+    
+    style A fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style B fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style C fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style E fill:#ffe0b2,stroke:#e64a19,stroke-width:2px
 ```
-START
-  ↓
-generateQueryOrRespond ←─────────────┐
-  ↓ (REASON)                         │
-  ├─→ (no tools) → END               │
-  └─→ (has tools) → retrieve         │
-                      ↓ (ACT)        │
-                 gradeDocuments       │
-                      ↓ (OBSERVE)    │
-                      ├─→ (relevant) → generate → END
-                      └─→ (not relevant) → rewrite ───┘
-                                          ↑ (REASON + ACT)
-```
+
+**Key**: Conditional graph with feedback loops for self-correction.
 
 ### Nodes (Mapped to ReAct)
 
