@@ -1,98 +1,73 @@
 # Part 4: Multi-Model Hybrid Search with ArangoDB
 
-A **social network knowledge base** demonstrating true multi-model hybrid search by combining **3 types of search** in one query using **ArangoDB**.
+A **social network knowledge base** demonstrating multi-model hybrid search by combining **3 types of search** in one query.
 
 ## What is Hybrid Search?
 
-**Hybrid search** means combining multiple search techniques to get better results than any single approach:
+Combining multiple search techniques for better results than any single approach:
 
-### The 3 Search Types Used:
+### The 3 Search Types
 
-#### 1. **BM25 Keyword Search** (Traditional IR)
-- **What**: Classic full-text search using TF-IDF and document length normalization
-- **When**: Finds exact keyword matches like "graph database" or "real-time messaging"
-- **Strength**: Precision - finds documents with specific terms
-- **Limitation**: Misses semantically similar content with different wording
+| Type | What | Strength | Limitation |
+|------|------|----------|------------|
+| **BM25 Keyword** | TF-IDF full-text search | Finds exact terms | Misses synonyms/concepts |
+| **Vector Semantic** | 768-dim embeddings + similarity | Understands meaning | May miss exact keywords |
+| **Graph Traversal** | Follows relationships | Discovers connected people | Depends on relationship quality |
 
-#### 2. **Vector Similarity Search** (Semantic AI)
-- **What**: Converts text to embeddings (768-dim vectors) and finds nearest neighbors
-- **When**: Finds conceptually similar content even without exact keywords
-- **Strength**: Recall - understands meaning and context
-- **Limitation**: May miss exact technical terms or names
-
-#### 3. **Graph Traversal** (Relationship-based)
-- **What**: Follows edges in a graph to find connected documents
-- **When**: Discovers related articles through their relationships
-- **Strength**: Context expansion - finds relevant content via connections
-- **Limitation**: Depends on quality of relationship data
-
-### Why Combine All Three?
-
-Let's use a realistic query to see why you need all three search types:
+### Why All Three?
 
 **User Query**: `"I need help building a search feature with neural embeddings"`
 
-This query is perfect because it combines specific technical terms with natural language - just like real users search!
+| Approach | Finds | Result |
+|----------|-------|--------|
+| **❌ BM25 only** | Emma | 1 person (misses semantic matches) |
+| **❌ Vector only** | Alice, Henry | 2 people (misses exact keywords!) |
+| **✅ Hybrid** | Emma ⭐ 12yrs, Alice 🔹 8yrs, Henry ⭐ 15yrs | 3 people (RRF ranks Emma #1) |
+| **✅✅ + Graph** | + Carol 🔹 5yrs, Bob 6yrs | **5 people - complete team!** |
 
-| What Each Search Type Finds | Result | Why It Happens |
-|------------------------------|--------|----------------|
-| **❌ BM25 only** | Emma (1 person) | Finds "neural" + "embeddings" but MISSES "semantic search" experts |
-| **❌ Vector only** | Alice, Henry (2 people) | Understands concept but MISSES Emma who literally says "neural embeddings"! |
-| **✅ Hybrid (BM25+Vector)** | Emma ⭐, Alice 🔹, Henry ⭐ (3 people) | RRF fusion ranks best matches. **Emma = 12 years expert!** |
-| **✅✅ + Graph Traversal** | + Carol 🔹, Bob (5 people) | Discovers the COMPLETE team including collaborators |
-
-**Why This Shows Hybrid's Power:**
-- Each search type has a blind spot when used alone
-- BM25 misses semantic similarity (search ≈ neural embeddings)
-- Vector misses exact keyword matches (Emma literally has the skills!)
-- Graph discovers the actual team you need to build the feature
-- **Shows expertise levels**: ⭐ Expert, 🔹 Senior, and years of experience
-
-**Result**: 1 person → 5 people with **Emma (12 yrs, Expert)** as the top expert!
+**Key Insight**: Each search type has blind spots. Only hybrid + graph finds everyone with expertise levels.
 
 ## Architecture
-
-### System Components
 
 ```mermaid
 graph TB
     subgraph "User Layer"
-        Q[🔍 Search Query<br/>"friend connections"]
+        Q["🔍 Search Query: neural embeddings expert"]
     end
     
     subgraph "Application Layer"
-        APP[📱 Search Application]
-        EMB[🧠 Ollama Embeddings<br/>nomic-embed-text]
+        APP["📱 Search Application"]
+        EMB["🧠 Ollama nomic-embed-text (768-dim)"]
     end
     
     subgraph "ArangoDB Multi-Model Database"
         direction TB
         
         subgraph "Storage"
-            DOCS[(📄 Document Collection<br/>Knowledge Base Articles<br/>+ Embeddings)]
-            EDGES[(🔗 Edge Collection<br/>Article Relationships)]
+            DOCS[("👥 docs: 10 profiles + embeddings + expertise")]
+            EDGES[("🔗 related_to: 18 work relationships")]
         end
         
         subgraph "Indexes & Views"
-            VIDX[🎯 Vector Index<br/>Cosine Similarity<br/>768 dimensions]
-            BVIEW[📚 ArangoSearch View<br/>BM25 Scoring<br/>Full-text Index]
+            VIDX["🎯 idx_vector: IVF + Cosine (768-dim)"]
+            BVIEW["📚 docs_view: BM25 + text_en analyzer"]
         end
         
         subgraph "Graph"
-            GRAPH[🕸️ Named Graph<br/>docs_graph]
+            GRAPH["🕸️ docs_graph: Professional Network"]
         end
         
         subgraph "Query Engine"
-            AQL[⚙️ AQL Multi-Model Query]
+            AQL["⚙️ AQL: Multi-Model Query Engine"]
         end
     end
     
     subgraph "Search Pipeline"
         direction LR
-        S1[🔎 BM25<br/>Keyword Search]
-        S2[🧠 Vector<br/>Semantic Search]
-        S3[🔄 RRF<br/>Score Fusion]
-        S4[🕸️ Graph<br/>Traversal]
+        S1["🔎 BM25: Emma"]
+        S2["🧠 Vector: Alice, Henry"]
+        S3["🔄 RRF: Emma #1"]
+        S4["🕸️ Graph: + Carol, Bob"]
         
         S1 --> S3
         S2 --> S3
@@ -100,9 +75,9 @@ graph TB
     end
     
     subgraph "Results"
-        R1[🎯 Direct Matches<br/>3 articles]
-        R2[🔗 Related via Graph<br/>5+ articles]
-        FINAL[📋 Ranked Results<br/>8+ articles total]
+        R1["🎯 Direct: Emma⭐ Alice🔹 Henry⭐"]
+        R2["🔗 Graph: Carol🔹 Bob"]
+        FINAL["📋 5 people with expertise levels"]
         
         R1 --> FINAL
         R2 --> FINAL
@@ -144,233 +119,131 @@ graph TB
 
 **Key Components:**
 
-1. **Document Collection**: Stores knowledge base articles with text + 768-dim embeddings
-2. **Edge Collection**: Stores relationships (enables, powers, uses, etc.)
-3. **Vector Index**: Enables fast similarity search on embeddings
-4. **ArangoSearch View**: Provides BM25 full-text search
-5. **Named Graph**: Defines traversable relationships between articles
-6. **AQL Engine**: Executes multi-model query combining all search types
-
-### Why Hybrid Search?
-
-| Search Type | Strengths | Weaknesses | Example |
-|-------------|-----------|------------|---------|
-| **Keyword-only** | Exact matches | Misses synonyms/concepts | Finds "graph" but misses "connected data" |
-| **Vector-only** | Semantic understanding | Misses exact keywords | Finds concepts but misses exact terms |
-| **Hybrid (BM25+Vector)** | Precision + recall | Limited to direct matches | Combines both approaches |
-| **Multi-Model (Hybrid+Graph)** | Everything above + relationships | Most complex | Finds direct matches AND related docs |
-
-**Real Example from This Implementation:**
-
-Query: `"I need help building a search feature with neural embeddings"`
-
-- **BM25**: Finds Emma (12 yrs ⭐ Expert) - has "neural" + "embeddings"
-- **Vector**: Finds Alice (8 yrs 🔹 Senior), Henry (15 yrs ⭐ Expert)
-- **Hybrid**: RRF ranks Emma #1 - **Principal Research Scientist with 12 years!**
-- **Graph**: Adds Carol (5 yrs), Bob (6 yrs) - the supporting team
-- **Result**: Complete team with clear expertise levels - you know who's the expert!
+1. **docs** (10 profiles): Text + 768-dim embeddings + experience/expertise (⭐ Expert, 🔹 Senior)
+2. **related_to** (18 edges): Work relationships (`collaborates_with`, `works_with`, etc.)
+3. **idx_vector**: IVF algorithm + Cosine similarity (768-dim)
+4. **docs_view**: BM25 full-text + `text_en` analyzer
+5. **docs_graph**: Professional network traversal
+6. **AQL Engine**: Combines all 3 search types + RRF fusion
 
 ## Running Part 4
 
-### Prerequisites
+### Quick Start
 
 ```bash
 # Start services
 docker-compose up -d
 
-# Pull embedding model (one-time)
+# Pull model (one-time)
 docker exec -it ollama-server ollama pull nomic-embed-text  # ~274MB
-```
 
-### Run Searches
-
-Just run your search! The first time, it will automatically set up the database:
-
-```bash
-# Search the social network knowledge base
+# Search! (auto-setup on first run)
 yarn start:hybrid "help building search with neural embeddings"
 
-# The query above demonstrates all 3 search types:
-# - BM25 finds exact keyword matches ("neural", "embeddings")
-# - Vector understands semantic meaning (search systems, ML)
-# - Graph discovers collaborators (people who work together)
-# - Shows expertise: ⭐ Expert, 🔹 Senior + years of experience
-
-# Reset database (drop and recreate on next search)
+# Reset database
 yarn start:hybrid reset
 ```
 
-**What happens:**
-1. **BM25** finds people with exact keywords in their profiles
-2. **Vector search** finds people with semantically similar expertise
-3. **RRF fusion** combines and ranks both result sets
-4. **Graph expansion** automatically includes connected colleagues
+### What Happens
 
-The database setup happens automatically on first run and includes:
-- Creating database, collections, and graph
-- Ingesting 10 professional profiles with embeddings
-- Creating 18 relationships showing how people collaborate
+1. **BM25** finds exact keywords ("neural", "embeddings")
+2. **Vector** finds semantic matches (search/ML expertise)
+3. **RRF** combines and ranks (Emma #1)
+4. **Graph** discovers collaborators (Carol, Bob)
 
-**Reset Database:**
-Use `yarn start:hybrid reset` to drop the database and start fresh. Useful for:
-- Testing setup process
-- Clearing all data
-- Troubleshooting issues
+**Result**: Emma ⭐ 12yrs (Expert) + complete 5-person team!
 
 ## Reciprocal Rank Fusion (RRF)
 
-**Why RRF?** BM25 scores (0-15) and cosine similarity (0-1) use different scales. RRF converts ranks to comparable scores.
+**Why?** BM25 scores (0-15) and cosine similarity (0-1) use different scales. RRF converts ranks to comparable scores.
 
-**Formula:** `score = 1 / (k + rank)` where k=60 (constant)
+**Formula:** `score = 1 / (k + rank)` where k=60
 
-**Example from Social Network KB:**
+**Example:**
 
 Query: "help building search with neural embeddings"
 
-**Two ranked lists:**
-- **BM25**: [emma (rank=1, "neural embeddings"), alice (rank=3, "embeddings")]
-- **Vector**: [alice (rank=1, search/ML expert), emma (rank=2, neural networks), henry (rank=3, search systems)]
-
-**RRF Calculation:**
 ```
-alice:  1/(60+3) + 1/(60+1) = 0.0159 + 0.0164 = 0.0323 ✅ Highest!
-emma:   1/(60+1) + 1/(60+2) = 0.0164 + 0.0161 = 0.0325 ✅ Even Higher!
-henry:  1/(60+3)            = 0.0159
+BM25:   [emma (rank=1), alice (rank=3)]
+Vector: [alice (rank=1), emma (rank=2), henry (rank=3)]
+
+RRF Scores:
+alice: 1/(60+3) + 1/(60+1) = 0.0323
+emma:  1/(60+1) + 1/(60+2) = 0.0325 ✅ Highest!
+henry: 1/(60+3)            = 0.0159
 ```
 
-**Final Ranking:** emma (rank 1+2) > alice (rank 3+1) > henry (rank 3 only)
-
-**Why it matters:** Emma appears in BOTH lists with good ranks, so RRF boosts her to the top!
-**Then Graph adds:** Carol (works with Alice), Bob (integrates features) → 5 total people
-
-**Key Benefits:**
-- People appearing in BOTH lists get boosted (alice, henry)
-- No score normalization needed
-- Simple and effective
-
-## The Three Search Technologies Explained
-
-### Search Type Comparison
-
-| Search Type | Technology | Use Case | Example Query Result |
-|-------------|-----------|----------|---------------------|
-| **BM25 Keyword** | TF-IDF + doc length normalization | Exact term matching | "graph database" → finds Bob (mentions "graph databases" exactly) |
-| **Vector Semantic** | Neural embeddings + cosine similarity | Conceptual similarity | "graph database" → finds Frank (DBA, related concept) |
-| **Graph Traversal** | Edge following + relationship types | Related people discovery | From Bob → finds Henry (reports to), David (collaborates with) |
-
-### Why This Matters
-
-**Real User Query:**
-
-Query: "I need help building a search feature with neural embeddings"
-
-**Without Hybrid (BM25 only):**
-- Finds Emma (says "neural" + "embeddings") ✓
-- MISSES Alice (says "semantic search" not exact keywords) ❌
-- **Result**: 1 person (but you don't know if she's the best)
-
-**With Hybrid (BM25 + Vector):**
-- BM25: Finds Emma (exact match) - **12 years ⭐ Expert**
-- Vector: Finds Alice (8 yrs 🔹 Senior), Henry (15 yrs ⭐ Expert)
-- RRF: Ranks Emma #1 (she's the neural embeddings expert!)
-- **Result**: 3 people with **clear expertise levels**
-
-**With Graph (+Traversal):**
-- Discovers Carol (5 yrs 🔹 - works with Alice on ranking systems)
-- Discovers Bob (6 yrs - backend developer who can integrate the feature)
-- **Result**: Complete team hierarchy - Emma leads, Alice/Henry support, Carol/Bob assist
+**Result**: Emma #1 (appears in both lists) → Graph adds Carol & Bob → 5 people total
 
 ## Implementation
 
-### Key Components
-
-**Document Structure:**
+### Document Structure
 ```typescript
 {
-  _key: "doc1",
-  text: "ArangoDB is a multi-model database...",
-  embedding: [0.23, -0.15, 0.42, ...] // 768-dim vector
+  _key: "alice",
+  name: "Alice Chen",
+  text: "Senior ML Engineer specializing in semantic search...",
+  role: "Senior ML Engineer",
+  yearsOfExperience: 8,
+  expertiseLevel: "Senior",
+  embedding: [0.23, -0.15, 0.42, ...] // 768-dim
 }
 ```
 
-**Indexes:**
-- **Vector Index**: For semantic similarity search
-- **ArangoSearch View**: For BM25 keyword search
-
 ### AQL Query (Simplified)
-
 ```aql
 // 1. BM25 Keyword Search
 FOR doc IN docs_view
   SEARCH ANALYZER(doc.text IN TOKENS(query, 'text_en'), 'text_en')
-  SORT BM25(doc) DESC
-  LIMIT 5
+  SORT BM25(doc) DESC LIMIT 3
 
 // 2. Vector Similarity Search
 FOR doc IN docs
   LET similarity = COSINE_SIMILARITY(doc.embedding, query_vector)
-  SORT similarity DESC
-  LIMIT 5
+  SORT similarity DESC LIMIT 3
 
-// 3. Apply RRF and combine
-FOR doc IN UNION(bm25_rrf, vector_rrf)
-  COLLECT _id = doc._id
-  AGGREGATE final_score = SUM(doc.rrf_score)
-  SORT final_score DESC
+// 3. RRF Fusion + Graph Traversal
+// Combines results, applies RRF scoring, traverses graph for related people
 ```
 
 ## Configuration
 
-**Models:**
-- **Embeddings**: `nomic-embed-text` (~274MB, 768 dimensions)
-- No LLM required (pure search, not RAG generation)
+| Component | Details |
+|-----------|---------|
+| **Embeddings** | nomic-embed-text (~274MB, 768-dim) |
+| **Database** | ArangoDB 3.11+ |
+| **Collections** | docs (10 profiles), related_to (18 edges) |
+| **Indexes** | Vector (IVF, Cosine), ArangoSearch (BM25) |
+| **Parameters** | RRF k=60, 3 results per search type |
 
-**Database:**
-- **ArangoDB**: Version 3.11+
-- **Database**: `hybrid_search_db`
-- **Collection**: `docs`
-- **View**: `docs_view`
-
-**Parameters:**
-- **RRF Constant (k)**: 60
-- **Results**: 5 per search type
-- **Similarity**: Cosine
-- **Analyzer**: `text_en`
-
-## Comparison
+## Comparison with Part 1
 
 | Feature | Part 1 | Part 4 |
 |---------|--------|--------|
-| **Search Type** | Vector only | Hybrid (BM25 + Vector) |
-| **Storage** | In-memory | Persistent |
+| **Search Type** | Vector only | Hybrid (BM25 + Vector + Graph) |
+| **Storage** | In-memory | Persistent (ArangoDB) |
 | **Keyword Search** | ❌ | ✅ BM25 |
+| **Graph Traversal** | ❌ | ✅ Relationships |
 | **Result Fusion** | ❌ | ✅ RRF |
-| **LLM Generation** | ✅ | ❌ (search only) |
+| **Expertise Levels** | ❌ | ✅ Expert/Senior/Mid-Level |
 
 ## Use Cases
 
-✅ **Use hybrid search when:**
-- You need both precision (keywords) and recall (semantics)
+**✅ Use hybrid search when:**
+- Need both precision (keywords) AND recall (semantics)
 - Users search with exact terms OR natural language
-- You want the best search quality
-- Building search engines, recommendation systems
-
-❌ **Use vector-only when:**
-- Pure semantic similarity is sufficient
-- Simpler implementation preferred
-
-## Advantages & Limitations
+- Want best search quality
+- Building search engines, expert finders, recommendation systems
 
 **Advantages:**
-- ✅ Superior search quality (precision + recall)
-- ✅ Robust to embedding quality
-- ✅ Persistent storage
-- ✅ Production-ready (ACID, clustering)
+- Superior search quality (precision + recall + relationships)
+- Returns expertise levels (⭐ Expert, 🔹 Senior)
+- Persistent storage (production-ready)
+- Discovers complete teams through graph traversal
 
 **Limitations:**
-- ❌ More complex setup (ArangoDB + AQL)
-- ❌ No LLM generation (search only)
-- ❌ No chat history
+- More complex setup (ArangoDB + AQL)
+- No LLM generation (pure search)
 
 ## Extending
 
@@ -384,53 +257,34 @@ const hybridRetriever = async (query: string) => {
 ```
 
 **Add Features:**
-- Chat history storage in ArangoDB
-- Metadata filtering (date, category, etc.)
+- Metadata filtering (years of experience, expertise level)
 - Reranking with cross-encoders
 - Multiple graph traversal depths
+- Time-based relevance (recent collaborations)
 
 ## Troubleshooting
 
-### Reset Database
-
-If you encounter issues or want to start fresh:
-
+**Reset Database:**
 ```bash
 yarn start:hybrid reset
 ```
 
-This drops the entire database. The next search will automatically recreate everything.
-
-### Common Issues
-
-**"Database connection failed"**
-- Ensure ArangoDB is running: `docker ps | grep arangodb`
-- Restart if needed: `docker-compose restart arangodb`
-
-**"Vector index feature not enabled"**
-- Check `docker-compose.yml` has `--experimental-vector-index true`
-- Restart containers: `docker-compose down && docker-compose up -d`
-
-**"Model not found"**
-- Pull the embedding model: `docker exec -it ollama-server ollama pull nomic-embed-text`
-
-**Stale data or schema issues**
-- Use reset: `yarn start:hybrid reset`
-- Then run any search to recreate
+**Common Issues:**
+- **"Database connection failed"**: `docker-compose restart arangodb`
+- **"Vector index not enabled"**: Check `--experimental-vector-index true` in docker-compose.yml
+- **"Model not found"**: `docker exec -it ollama-server ollama pull nomic-embed-text`
 
 ## Resources
 
 **ArangoDB:**
 - [Documentation](https://www.arangodb.com/docs/)
 - [AQL Query Language](https://www.arangodb.com/docs/stable/aql/)
-- [ArangoSearch](https://www.arangodb.com/docs/stable/arangosearch.html)
 - [Vector Search](https://www.arangodb.com/docs/stable/indexing-vector.html)
 
 **Hybrid Search:**
 - [RRF Paper](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf)
-- [Hybrid Search Overview](https://www.pinecone.io/learn/hybrid-search-intro/)
 - [BM25 Algorithm](https://en.wikipedia.org/wiki/Okapi_BM25)
 
 ---
 
-**Ready to try?** Run `yarn start:hybrid "your search query"` →
+**Ready to try?** Run `yarn start:hybrid "help building search with neural embeddings"` →
