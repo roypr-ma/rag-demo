@@ -21,7 +21,14 @@ const config = {
     password: 'testpass',
     dbName: 'hybrid_search_db',
     collectionName: 'docs',
-    edgeCollectionName: 'related_to',
+    projectCollectionName: 'projects',
+    edgeCollections: {
+      reports_to: 'reports_to',
+      collaborates_with: 'collaborates_with',
+      works_with: 'works_with',
+      advises: 'advises',
+      works_on: 'works_on',
+    },
     graphName: 'docs_graph',
     viewName: 'docs_view',
   },
@@ -75,12 +82,30 @@ async function getEmbedding(text: string): Promise<number[]> {
 // SAMPLE DATA - PROFESSIONAL NETWORK
 // ============================================================================
 
-// People in a professional network with their expertise and interests
+// People in a professional network - Search Team Hierarchy
 const SAMPLE_DOCS = [
+  {
+    _key: 'henry',
+    name: 'Henry Patel',
+    text: 'VP of Engineering and Principal Architect designing enterprise search solutions. Leads the search infrastructure team. 15 years architecting large-scale systems.',
+    role: 'VP Engineering',
+    skills: ['System Design', 'Search Architecture', 'Leadership', 'Scalability'],
+    yearsOfExperience: 15,
+    expertiseLevel: 'Expert',
+  },
+  {
+    _key: 'emma',
+    name: 'Emma Thompson',
+    text: 'Principal Research Scientist working on neural search and embedding models. Published 15+ papers on hybrid search techniques. Reports to Henry. 12 years in ML research, recognized expert in neural embeddings.',
+    role: 'Principal Research Scientist',
+    skills: ['Research', 'Neural Networks', 'Embeddings', 'Hybrid Search'],
+    yearsOfExperience: 12,
+    expertiseLevel: 'Expert',
+  },
   {
     _key: 'alice',
     name: 'Alice Chen',
-    text: 'Senior Machine Learning Engineer specializing in large language models and vector embeddings. Passionate about semantic search and RAG systems. 8 years of experience in ML and AI.',
+    text: 'Senior Machine Learning Engineer specializing in semantic search and vector embeddings. Works under Emma on implementing search features. 8 years of experience in ML and AI.',
     role: 'Senior ML Engineer',
     skills: ['Python', 'PyTorch', 'Vector Search', 'LLMs', 'Semantic Search'],
     yearsOfExperience: 8,
@@ -89,122 +114,66 @@ const SAMPLE_DOCS = [
   {
     _key: 'bob',
     name: 'Bob Martinez',
-    text: 'Full-stack developer with expertise in graph databases and distributed systems. Loves building scalable backend architectures. 6 years building production systems.',
-    role: 'Backend Developer',
-    skills: ['Node.js', 'ArangoDB', 'Graph Databases', 'Microservices'],
+    text: 'Backend Engineer building search APIs and integrations. Reports to Henry. Implements graph databases and distributed search systems. 6 years building production systems.',
+    role: 'Backend Engineer',
+    skills: ['Node.js', 'ArangoDB', 'Graph Databases', 'APIs'],
     yearsOfExperience: 6,
     expertiseLevel: 'Mid-Level',
   },
   {
     _key: 'carol',
     name: 'Carol Williams',
-    text: 'Data Scientist focusing on natural language processing and information retrieval. Experienced with BM25 and ranking algorithms. 5 years in NLP and search.',
+    text: 'Data Scientist working on search relevance and ranking. Collaborates with Emma on BM25 and hybrid search algorithms. 5 years in NLP and information retrieval.',
     role: 'Data Scientist',
-    skills: ['NLP', 'Information Retrieval', 'BM25', 'Python'],
-    yearsOfExperience: 5,
-    expertiseLevel: 'Mid-Level',
-  },
-  {
-    _key: 'david',
-    name: 'David Kim',
-    text: 'DevOps Engineer managing cloud infrastructure and containerized applications. Expert in Docker, Kubernetes, and CI/CD pipelines. 7 years in DevOps.',
-    role: 'DevOps Engineer',
-    skills: ['Docker', 'Kubernetes', 'AWS', 'Terraform'],
-    yearsOfExperience: 7,
-    expertiseLevel: 'Senior',
-  },
-  {
-    _key: 'emma',
-    name: 'Emma Thompson',
-    text: 'Principal Research Scientist working on neural search and embedding models. Published 15+ papers on hybrid search techniques combining traditional and modern approaches. 12 years in ML research, recognized expert in neural embeddings.',
-    role: 'Principal Research Scientist',
-    skills: ['Research', 'Neural Networks', 'Embeddings', 'Academic Writing', 'Hybrid Search'],
-    yearsOfExperience: 12,
-    expertiseLevel: 'Expert',
-  },
-  {
-    _key: 'frank',
-    name: 'Frank Rodriguez',
-    text: 'Database Administrator with deep knowledge of multi-model databases. Specializes in query optimization and indexing strategies. 10 years managing enterprise databases.',
-    role: 'Senior DBA',
-    skills: ['Database Design', 'Query Optimization', 'Indexing', 'Performance Tuning'],
-    yearsOfExperience: 10,
-    expertiseLevel: 'Senior',
-  },
-  {
-    _key: 'grace',
-    name: 'Grace Lee',
-    text: 'Product Manager for AI-powered search products. Bridging technical implementation with user needs and business requirements. 6 years in product management.',
-    role: 'Product Manager',
-    skills: ['Product Strategy', 'User Research', 'AI Products', 'Agile'],
-    yearsOfExperience: 6,
-    expertiseLevel: 'Mid-Level',
-  },
-  {
-    _key: 'henry',
-    name: 'Henry Patel',
-    text: 'Principal Software Architect designing enterprise search solutions. Advocates for combining semantic understanding with traditional keyword matching. 15 years architecting large-scale systems.',
-    role: 'Principal Architect',
-    skills: ['System Design', 'Search Architecture', 'Scalability', 'Documentation'],
-    yearsOfExperience: 15,
-    expertiseLevel: 'Expert',
-  },
-  {
-    _key: 'iris',
-    name: 'Iris Wang',
-    text: 'Frontend Developer creating intuitive search interfaces. Passionate about user experience and real-time search suggestions. 4 years in frontend development.',
-    role: 'Frontend Developer',
-    skills: ['React', 'TypeScript', 'UI/UX', 'Performance'],
-    yearsOfExperience: 4,
-    expertiseLevel: 'Mid-Level',
-  },
-  {
-    _key: 'jack',
-    name: 'Jack Brown',
-    text: 'Technical Writer and developer advocate. Creates documentation and tutorials for complex search systems and AI tools. 5 years in technical communications.',
-    role: 'Developer Advocate',
-    skills: ['Technical Writing', 'Developer Relations', 'Teaching', 'Content Creation'],
+    skills: ['NLP', 'Information Retrieval', 'BM25', 'Ranking Algorithms'],
     yearsOfExperience: 5,
     expertiseLevel: 'Mid-Level',
   },
 ];
 
-// Professional relationships and collaborations
+// Projects - These become nodes in the graph
+const SAMPLE_PROJECTS = [
+  {
+    _key: 'hybrid_search',
+    name: 'Hybrid Search Implementation',
+    description: 'Building a hybrid search system combining BM25, vector similarity, and graph traversal',
+    status: 'active',
+  },
+  {
+    _key: 'search_api',
+    name: 'Search API Integration',
+    description: 'REST API for search functionality with ArangoDB backend',
+    status: 'active',
+  },
+  {
+    _key: 'neural_embeddings',
+    name: 'Neural Embeddings Research',
+    description: 'Research on semantic search using neural network embeddings',
+    status: 'active',
+  },
+];
+
+// Relationships - Mix of person-to-person and person-to-project
 const SAMPLE_RELATIONSHIPS = [
-  // Alice (ML Engineer) connections
-  { _from: 'docs/alice', _to: 'docs/emma', type: 'collaborates_with', project: 'Neural search research' },
-  { _from: 'docs/alice', _to: 'docs/carol', type: 'works_with', project: 'Hybrid ranking systems' },
-  { _from: 'docs/alice', _to: 'docs/henry', type: 'consults_with', project: 'Search architecture design' },
+  // Reporting structure (person → person)
+  { _from: 'docs/emma', _to: 'docs/henry', type: 'reports_to' },
+  { _from: 'docs/bob', _to: 'docs/henry', type: 'reports_to' },
+  { _from: 'docs/alice', _to: 'docs/emma', type: 'reports_to' },
+  { _from: 'docs/carol', _to: 'docs/emma', type: 'reports_to' },
   
-  // Bob (Backend) connections
-  { _from: 'docs/bob', _to: 'docs/frank', type: 'works_with', project: 'Database optimization' },
-  { _from: 'docs/bob', _to: 'docs/david', type: 'collaborates_with', project: 'Infrastructure deployment' },
-  { _from: 'docs/bob', _to: 'docs/henry', type: 'reports_to', project: 'Backend team' },
+  // Cross-functional collaboration (person ↔ person)
+  { _from: 'docs/alice', _to: 'docs/carol', type: 'collaborates_with' },
+  { _from: 'docs/carol', _to: 'docs/alice', type: 'collaborates_with' },
+  { _from: 'docs/bob', _to: 'docs/alice', type: 'works_with' },
+  { _from: 'docs/emma', _to: 'docs/henry', type: 'advises' },
   
-  // Carol (Data Scientist) connections
-  { _from: 'docs/carol', _to: 'docs/emma', type: 'collaborates_with', project: 'Research papers' },
-  { _from: 'docs/carol', _to: 'docs/alice', type: 'mentors', project: 'ML best practices' },
-  
-  // Emma (Research) connections
-  { _from: 'docs/emma', _to: 'docs/jack', type: 'works_with', project: 'Research documentation' },
-  
-  // Frank (DBA) connections
-  { _from: 'docs/frank', _to: 'docs/henry', type: 'advises', project: 'Database strategy' },
-  
-  // Grace (PM) connections
-  { _from: 'docs/grace', _to: 'docs/alice', type: 'manages', project: 'ML features roadmap' },
-  { _from: 'docs/grace', _to: 'docs/iris', type: 'manages', project: 'UI/UX improvements' },
-  { _from: 'docs/grace', _to: 'docs/henry', type: 'works_with', project: 'Product strategy' },
-  
-  // Henry (Architect) connections
-  { _from: 'docs/henry', _to: 'docs/jack', type: 'collaborates_with', project: 'Architecture docs' },
-  
-  // Iris (Frontend) connections
-  { _from: 'docs/iris', _to: 'docs/bob', type: 'works_with', project: 'API integration' },
-  { _from: 'docs/iris', _to: 'docs/jack', type: 'collaborates_with', project: 'UI documentation' },
-  
-  // Jack (DevRel) connections
-  { _from: 'docs/jack', _to: 'docs/david', type: 'works_with', project: 'Deployment guides' },
+  // Project assignments (person → project)
+  { _from: 'docs/alice', _to: 'projects/hybrid_search', type: 'works_on', role: 'Lead ML Engineer' },
+  { _from: 'docs/carol', _to: 'projects/hybrid_search', type: 'works_on', role: 'Data Scientist' },
+  { _from: 'docs/bob', _to: 'projects/search_api', type: 'works_on', role: 'Lead Backend Engineer' },
+  { _from: 'docs/alice', _to: 'projects/search_api', type: 'works_on', role: 'ML Integration' },
+  { _from: 'docs/emma', _to: 'projects/neural_embeddings', type: 'works_on', role: 'Principal Investigator' },
+  { _from: 'docs/alice', _to: 'projects/neural_embeddings', type: 'works_on', role: 'Research Engineer' },
 ];
 
 // ============================================================================
@@ -241,7 +210,7 @@ async function setupDatabase() {
     }
   }
 
-  // 2. Create Document Collection
+  // 2. Create Document Collections
   const col = db.collection(config.arango.collectionName);
   try {
     await db.createCollection(config.arango.collectionName);
@@ -256,31 +225,74 @@ async function setupDatabase() {
     }
   }
 
-  // 3. Create Edge Collection
-  const edgeCol = db.collection(config.arango.edgeCollectionName);
+  const projectCol = db.collection(config.arango.projectCollectionName);
   try {
-    await db.createEdgeCollection(config.arango.edgeCollectionName);
-    console.log(`✓ Edge collection '${config.arango.edgeCollectionName}' created`);
+    await db.createCollection(config.arango.projectCollectionName);
+    console.log(`✓ Project collection '${config.arango.projectCollectionName}' created`);
   } catch (e: any) {
     if (e.isArangoError && e.errorNum === 1207) {
-      console.log(`✓ Edge collection '${config.arango.edgeCollectionName}' already exists`);
-      await (edgeCol as any).truncate();
-      console.log('  → Edge collection truncated');
+      console.log(`✓ Project collection '${config.arango.projectCollectionName}' already exists`);
+      await (projectCol as any).truncate();
+      console.log('  → Collection truncated');
     } else {
       throw e;
     }
   }
 
-  // 4. Create Named Graph
+  // 3. Create Edge Collections (one for each relationship type)
+  console.log(`\n🔗 Creating edge collections...`);
+  const edgeCollections: { [key: string]: any } = {};
+  for (const [type, collectionName] of Object.entries(config.arango.edgeCollections)) {
+    const edgeCol = db.collection(collectionName);
+    try {
+      await db.createEdgeCollection(collectionName);
+      console.log(`   ✓ Edge collection '${collectionName}' created`);
+    } catch (e: any) {
+      if (e.isArangoError && e.errorNum === 1207) {
+        console.log(`   ✓ Edge collection '${collectionName}' already exists`);
+        await (edgeCol as any).truncate();
+        console.log(`     → Truncated`);
+      } else {
+        throw e;
+      }
+    }
+    edgeCollections[type] = edgeCol;
+  }
+
+  // 4. Create Named Graph with multiple edge definitions
   try {
-    await db.createGraph(config.arango.graphName, [
+    const edgeDefinitions = [
+      // Person-to-person relationships
       {
-        collection: config.arango.edgeCollectionName,
+        collection: config.arango.edgeCollections.reports_to,
         from: [config.arango.collectionName],
         to: [config.arango.collectionName],
       },
-    ]);
-    console.log(`✓ Graph '${config.arango.graphName}' created`);
+      {
+        collection: config.arango.edgeCollections.collaborates_with,
+        from: [config.arango.collectionName],
+        to: [config.arango.collectionName],
+      },
+      {
+        collection: config.arango.edgeCollections.works_with,
+        from: [config.arango.collectionName],
+        to: [config.arango.collectionName],
+      },
+      {
+        collection: config.arango.edgeCollections.advises,
+        from: [config.arango.collectionName],
+        to: [config.arango.collectionName],
+      },
+      // Person-to-project relationships
+      {
+        collection: config.arango.edgeCollections.works_on,
+        from: [config.arango.collectionName],
+        to: [config.arango.projectCollectionName],
+      },
+    ];
+    
+    await db.createGraph(config.arango.graphName, edgeDefinitions);
+    console.log(`✓ Graph '${config.arango.graphName}' created with ${edgeDefinitions.length} edge types`);
   } catch (e: any) {
     if (e.isArangoError && e.errorNum === 1207) {
       console.log(`✓ Graph '${config.arango.graphName}' already exists`);
@@ -310,8 +322,8 @@ async function setupDatabase() {
     }
   }
 
-  // 6. Ingest sample documents
-  console.log(`\n📝 Ingesting ${SAMPLE_DOCS.length} sample documents...`);
+  // 6. Ingest sample documents (people)
+  console.log(`\n📝 Ingesting ${SAMPLE_DOCS.length} team members...`);
   for (const doc of SAMPLE_DOCS) {
     console.log(`   → Embedding "${doc._key}"...`);
     const embedding = await getEmbedding(doc.text);
@@ -321,12 +333,31 @@ async function setupDatabase() {
     });
   }
 
-  // 7. Create relationships (edges)
-  console.log(`\n🔗 Creating ${SAMPLE_RELATIONSHIPS.length} relationships...`);
-  for (const edge of SAMPLE_RELATIONSHIPS) {
-    await (edgeCol as any).save(edge);
+  // 6b. Ingest projects (no embeddings needed for now)
+  console.log(`\n📁 Creating ${SAMPLE_PROJECTS.length} projects...`);
+  for (const project of SAMPLE_PROJECTS) {
+    await (projectCol as any).save(project);
+    console.log(`   ✓ ${project.name}`);
   }
-  console.log(`   ✓ Graph relationships created`);
+
+  // 7. Create organizational relationships (edges) in their respective collections
+  console.log(`\n🔗 Creating ${SAMPLE_RELATIONSHIPS.length} organizational relationships...`);
+  for (const edge of SAMPLE_RELATIONSHIPS) {
+    const edgeCol = edgeCollections[edge.type];
+    if (!edgeCol) {
+      throw new Error(`Unknown relationship type: ${edge.type}`);
+    }
+    // Save edge without the type field since the collection name already indicates the type
+    const { type, ...edgeData } = edge;
+    await (edgeCol as any).save(edgeData);
+    
+    // Pretty print based on edge type
+    const fromType = edge._from.startsWith('docs/') ? '👤' : '📁';
+    const toType = edge._to.startsWith('docs/') ? '👤' : '📁';
+    const roleSuffix = edge.role ? ` (${edge.role})` : '';
+    console.log(`   ✓ ${edge.type}: ${fromType}${edge._from} → ${toType}${edge._to}${roleSuffix}`);
+  }
+  console.log(`   ✓ All relationships created`);
 
   // 8. Create Vector Index (after documents are inserted)
   // Vector indexes enable fast similarity search using Approximate Nearest Neighbor (ANN)
@@ -386,18 +417,7 @@ async function setupDatabase() {
 // DATABASE CHECK FUNCTION
 // ============================================================================
 
-/**
- * Checks if the database is set up by trying to access the collection
- */
-async function isDatabaseSetup(): Promise<boolean> {
-  try {
-    const col = db.collection(config.arango.collectionName);
-    const count = await (col as any).count();
-    return count.count > 0;
-  } catch (e: any) {
-    return false;
-  }
-}
+// Removed isDatabaseSetup() - no longer needed since we reset on every run
 
 // ============================================================================
 // MULTI-MODEL HYBRID SEARCH
@@ -491,14 +511,35 @@ async function search(query: string) {
         }
     )
 
-    // 4. Get initial hybrid results
+    // 4. Get initial hybrid results with their relationships
     LET initial_results = (
         FOR doc IN UNION(bm25_with_rrf, vector_with_rrf)
-        COLLECT _id = doc._id, _key = doc._key, name = doc.name, text = doc.text, role = doc.role,
-                yearsOfExperience = doc.yearsOfExperience, expertiseLevel = doc.expertiseLevel
+        COLLECT 
+            _id = doc._id,
+            _key = doc._key,
+            name = doc.name,
+            text = doc.text,
+            role = doc.role,
+            yearsOfExperience = doc.yearsOfExperience,
+            expertiseLevel = doc.expertiseLevel
         AGGREGATE final_score = SUM(doc.rrf_score)
+        FILTER _key != null
         SORT final_score DESC
         LIMIT ${limit}
+        // Get relationships for this person (both to other people and to projects)
+        LET person_rels = (
+            FOR v, e IN 1..1 ANY _id GRAPH ${config.arango.graphName}
+                // Extract relationship type from edge collection name (e.g., "reports_to/123" -> "reports_to")
+                LET edge_type = SPLIT(e._id, "/")[0]
+                LET node_type = SPLIT(v._id, "/")[0]
+                RETURN {
+                    type: edge_type,
+                    connected_to: v.name,
+                    connected_type: node_type,
+                    role: e.role,
+                    direction: e._from == _id ? "from" : "to"
+                }
+        )
         RETURN {
             _id: _id,
             _key: _key,
@@ -508,27 +549,44 @@ async function search(query: string) {
             yearsOfExperience: yearsOfExperience,
             expertiseLevel: expertiseLevel,
             score: final_score,
-            source: "hybrid_search"
+            source: "hybrid_search",
+            relationships: person_rels
         }
     )
 
-    // 5. GRAPH EXPANSION: Get connected people
+    // 5. GRAPH EXPANSION: Get connected people (excluding those already in direct matches)
+    LET direct_ids = initial_results[*]._id
     LET related_people = (
         FOR result IN initial_results
         FOR v, e, p IN 1..1 ANY result._id GRAPH ${config.arango.graphName}
-            RETURN DISTINCT {
-                _id: v._id,
-                _key: v._key,
-                name: v.name,
-                text: v.text,
-                role: v.role,
-                yearsOfExperience: v.yearsOfExperience,
-                expertiseLevel: v.expertiseLevel,
+            FILTER v._id NOT IN direct_ids
+            COLLECT person_id = v._id INTO relationships
+            LET person = FIRST(relationships[*].v)
+            LET rel_list = (
+                FOR r IN relationships
+                    // Extract relationship type from edge collection name
+                    LET edge_type = SPLIT(r.e._id, "/")[0]
+                    LET node_type = SPLIT(r.result._id, "/")[0]
+                    RETURN {
+                        type: edge_type,
+                        connected_to: r.result.name,
+                        connected_type: node_type,
+                        role: r.e.role,
+                        // If edge goes FROM this person TO the result, person is the source
+                        direction: r.e._from == person_id ? "from" : "to"
+                    }
+            )
+            RETURN {
+                _id: person_id,
+                _key: person._key,
+                name: person.name,
+                text: person.text,
+                role: person.role,
+                yearsOfExperience: person.yearsOfExperience,
+                expertiseLevel: person.expertiseLevel,
                 score: 0.005,
                 source: "graph_expansion",
-                relationship: e.type,
-                connected_to: result._key,
-                project: e.project
+                relationships: rel_list
             }
     )
 
@@ -558,14 +616,71 @@ async function search(query: string) {
     console.log(`   ${person.text}`);
   });
 
+  // Show projects that direct matches work on
+  if (directMatches.length > 0) {
+    console.log(`\n\n📁 Projects:`);
+    const projects = new Map<string, string[]>();
+    
+    for (const person of directMatches) {
+      if (person.relationships) {
+        for (const rel of person.relationships) {
+          if (rel.connected_type === 'projects') {
+            if (!projects.has(rel.connected_to)) {
+              projects.set(rel.connected_to, []);
+            }
+            const roleInfo = rel.role ? ` (${rel.role})` : '';
+            projects.get(rel.connected_to)!.push(`${person.name}${roleInfo}`);
+          }
+        }
+      }
+    }
+    
+    if (projects.size > 0) {
+      projects.forEach((members, projectName) => {
+        console.log(`   • ${projectName}`);
+        members.forEach(member => console.log(`     - ${member}`));
+      });
+    } else {
+      console.log(`   (No project connections found)`);
+    }
+  }
+
   if (graphMatches.length > 0) {
     console.log(`\n\n🔗 Connected People (${graphMatches.length}):`);
     graphMatches.forEach((person: any, i: number) => {
       const expertBadge = person.expertiseLevel === 'Expert' ? ' ⭐ EXPERT' : person.expertiseLevel === 'Senior' ? ' 🔹 Senior' : '';
       console.log(`\n${i + 1}. ${person.name} - ${person.role}${expertBadge}`);
-      console.log(`   Experience: ${person.yearsOfExperience} years | Via: ${person.relationship} ${person.connected_to}`);
-      console.log(`   Project: "${person.project}"`);
-      console.log(`   ${person.text}`);
+      console.log(`   Experience: ${person.yearsOfExperience} years`);
+      
+      // Display all relationships
+      if (person.relationships && person.relationships.length > 0) {
+        console.log(`   Connected via:`);
+        person.relationships.forEach((rel: any) => {
+          let relationLabel = '';
+          const connectedIcon = rel.connected_type === 'projects' ? '📁' : '👤';
+          
+          if (rel.connected_type === 'projects') {
+            // Connection to a project
+            const roleInfo = rel.role ? ` as ${rel.role}` : '';
+            relationLabel = `Works on ${connectedIcon} ${rel.connected_to}${roleInfo}`;
+          } else if (rel.direction === 'from') {
+            // This person is the source of the relationship (to another person)
+            relationLabel = rel.type === 'reports_to' ? `Reports to ${connectedIcon} ${rel.connected_to}` :
+                           rel.type === 'collaborates_with' ? `Collaborates with ${connectedIcon} ${rel.connected_to}` :
+                           rel.type === 'works_with' ? `Works with ${connectedIcon} ${rel.connected_to}` :
+                           rel.type === 'advises' ? `Advises ${connectedIcon} ${rel.connected_to}` :
+                           `${rel.type} → ${connectedIcon} ${rel.connected_to}`;
+          } else {
+            // This person is the target of the relationship (from another person)
+            relationLabel = rel.type === 'reports_to' ? `${connectedIcon} ${rel.connected_to} reports to them` :
+                           rel.type === 'collaborates_with' ? `Collaborates with ${connectedIcon} ${rel.connected_to}` :
+                           rel.type === 'works_with' ? `${connectedIcon} ${rel.connected_to} works with them` :
+                           rel.type === 'advises' ? `Receives advice from ${connectedIcon} ${rel.connected_to}` :
+                           `${connectedIcon} ${rel.connected_to} → ${rel.type}`;
+          }
+          console.log(`     • ${relationLabel}`);
+        });
+      }
     });
   }
 
@@ -579,11 +694,9 @@ async function search(query: string) {
 // ============================================================================
 
 /**
- * Drops the database to start fresh
+ * Drops the database to start fresh (silent operation)
  */
 async function resetDatabase() {
-  logSection('🗑️  DATABASE RESET');
-  
   try {
     const systemDb = new Database({
       url: config.arango.url,
@@ -592,18 +705,13 @@ async function resetDatabase() {
     });
 
     await systemDb.dropDatabase(config.arango.dbName);
-    console.log(`✓ Database '${config.arango.dbName}' dropped successfully\n`);
-    console.log('Run search again to recreate the database automatically.\n');
   } catch (e: any) {
-    if (e.isArangoError && e.errorNum === 1228) {
-      console.log(`⚠️  Database '${config.arango.dbName}' does not exist (already clean)\n`);
-    } else {
+    // Silently ignore if database doesn't exist (error 1228)
+    if (e.isArangoError && e.errorNum !== 1228) {
       console.error('❌ Error dropping database:', e.message);
       throw e;
     }
   }
-  
-  logSeparator();
 }
 
 // ============================================================================
@@ -611,21 +719,12 @@ async function resetDatabase() {
 // ============================================================================
 
 async function main() {
-  const command = process.argv[2];
-
-  // Handle reset command
-  if (command === 'reset' || command === '--reset') {
-    await resetDatabase();
-    return;
-  }
-
-  const query = command;
+  const query = process.argv[2];
 
   if (!query) {
     console.log('\n❌ No search query provided.\n');
     console.log('Usage:');
-    console.log('  yarn start:hybrid "your query"        - Search the knowledge base');
-    console.log('  yarn start:hybrid reset               - Drop database and start fresh\n');
+    console.log('  yarn start:hybrid "your query"\n');
     console.log('Search Examples:');
     console.log('  yarn start:hybrid "help building search with neural embeddings"\n');
     console.log('  This query demonstrates all 3 search types:');
@@ -637,17 +736,17 @@ async function main() {
     console.log('  • Vector semantic similarity (meaning & context)');
     console.log('  • RRF fusion (combines both)');
     console.log('  • Graph expansion (finds collaborators)\n');
+    console.log('Debug Commands:');
+    console.log('  yarn start:hybrid list-relations  (shows all relationships in database)\n');
+    console.log('Note: Database is reset and recreated on every run for consistent results.\n');
     return;
   }
 
-  // Check if database is set up
-  const isSetup = await isDatabaseSetup();
-  
-  if (!isSetup) {
-    console.log('🔧 Knowledge base not found. Setting up first...\n');
-    await setupDatabase();
-    console.log();
-  }
+  // Always reset and recreate database for consistent results
+  console.log('🔄 Resetting database for fresh setup...\n');
+  await resetDatabase();
+  await setupDatabase();
+  console.log();
 
   // Run multi-model search
   await search(query);

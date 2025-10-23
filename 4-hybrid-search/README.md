@@ -44,8 +44,8 @@ graph TB
         direction TB
         
         subgraph "Storage"
-            DOCS[("👥 docs: 10 profiles + embeddings + expertise")]
-            EDGES[("🔗 related_to: 18 work relationships")]
+            DOCS[("👥 docs: 5 team members + hierarchy")]
+            EDGES[("🔗 related_to: 7 org relationships")]
         end
         
         subgraph "Indexes & Views"
@@ -119,11 +119,11 @@ graph TB
 
 **Key Components:**
 
-1. **docs** (10 profiles): Text + 768-dim embeddings + experience/expertise (⭐ Expert, 🔹 Senior)
-2. **related_to** (18 edges): Work relationships (`collaborates_with`, `works_with`, etc.)
+1. **docs** (5 profiles): Search team hierarchy with Text + 768-dim embeddings + experience/expertise (⭐ Expert, 🔹 Senior)
+2. **related_to** (7 edges): Organizational structure (`reports_to`, `collaborates_with`, `works_with`)
 3. **idx_vector**: IVF algorithm + Cosine similarity (768-dim)
 4. **docs_view**: BM25 full-text + `text_en` analyzer
-5. **docs_graph**: Professional network traversal
+5. **docs_graph**: Organizational hierarchy + cross-functional collaboration
 6. **AQL Engine**: Combines all 3 search types + RRF fusion
 
 ## Running Part 4
@@ -137,11 +137,8 @@ docker-compose up -d
 # Pull model (one-time)
 docker exec -it ollama-server ollama pull nomic-embed-text  # ~274MB
 
-# Search! (auto-setup on first run)
+# Search! (database resets on every run)
 yarn start:hybrid "help building search with neural embeddings"
-
-# Reset database
-yarn start:hybrid reset
 ```
 
 ### What Happens
@@ -212,7 +209,8 @@ FOR doc IN docs
 |-----------|---------|
 | **Embeddings** | nomic-embed-text (~274MB, 768-dim) |
 | **Database** | ArangoDB 3.11+ |
-| **Collections** | docs (10 profiles), related_to (18 edges) |
+| **Team** | 5 members in search team hierarchy |
+| **Collections** | docs (5 profiles), related_to (7 edges) |
 | **Indexes** | Vector (IVF, Cosine), ArangoSearch (BM25) |
 | **Parameters** | RRF k=60, 3 results per search type |
 
@@ -264,15 +262,12 @@ const hybridRetriever = async (query: string) => {
 
 ## Troubleshooting
 
-**Reset Database:**
-```bash
-yarn start:hybrid reset
-```
-
 **Common Issues:**
 - **"Database connection failed"**: `docker-compose restart arangodb`
 - **"Vector index not enabled"**: Check `--experimental-vector-index true` in docker-compose.yml
 - **"Model not found"**: `docker exec -it ollama-server ollama pull nomic-embed-text`
+
+**Note:** Database resets automatically on every run, ensuring consistent results.
 
 ## Resources
 

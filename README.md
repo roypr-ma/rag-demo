@@ -175,12 +175,11 @@ yarn start:agentic  # ~90-180s
 yarn start:hybrid "help building search with neural embeddings"
 
 # What happens:
+# - Database resets automatically for consistent results
 # - BM25 finds "neural" + "embeddings" (exact keywords)
 # - Vector understands search/ML expertise (semantic)
 # - Graph finds collaborators (relationships)
 # Result: Emma (12 yrs ⭐ Expert) + 4 team members!
-
-yarn start:hybrid reset  # Reset database
 ```
 
 **Three Search Types Combined:**
