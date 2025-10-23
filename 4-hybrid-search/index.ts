@@ -80,72 +80,92 @@ const SAMPLE_DOCS = [
   {
     _key: 'alice',
     name: 'Alice Chen',
-    text: 'Senior Machine Learning Engineer specializing in large language models and vector embeddings. Passionate about semantic search and RAG systems.',
-    role: 'ML Engineer',
-    skills: ['Python', 'PyTorch', 'Vector Search', 'LLMs'],
+    text: 'Senior Machine Learning Engineer specializing in large language models and vector embeddings. Passionate about semantic search and RAG systems. 8 years of experience in ML and AI.',
+    role: 'Senior ML Engineer',
+    skills: ['Python', 'PyTorch', 'Vector Search', 'LLMs', 'Semantic Search'],
+    yearsOfExperience: 8,
+    expertiseLevel: 'Senior',
   },
   {
     _key: 'bob',
     name: 'Bob Martinez',
-    text: 'Full-stack developer with expertise in graph databases and distributed systems. Loves building scalable backend architectures.',
+    text: 'Full-stack developer with expertise in graph databases and distributed systems. Loves building scalable backend architectures. 6 years building production systems.',
     role: 'Backend Developer',
     skills: ['Node.js', 'ArangoDB', 'Graph Databases', 'Microservices'],
+    yearsOfExperience: 6,
+    expertiseLevel: 'Mid-Level',
   },
   {
     _key: 'carol',
     name: 'Carol Williams',
-    text: 'Data Scientist focusing on natural language processing and information retrieval. Experienced with BM25 and ranking algorithms.',
+    text: 'Data Scientist focusing on natural language processing and information retrieval. Experienced with BM25 and ranking algorithms. 5 years in NLP and search.',
     role: 'Data Scientist',
     skills: ['NLP', 'Information Retrieval', 'BM25', 'Python'],
+    yearsOfExperience: 5,
+    expertiseLevel: 'Mid-Level',
   },
   {
     _key: 'david',
     name: 'David Kim',
-    text: 'DevOps Engineer managing cloud infrastructure and containerized applications. Expert in Docker, Kubernetes, and CI/CD pipelines.',
+    text: 'DevOps Engineer managing cloud infrastructure and containerized applications. Expert in Docker, Kubernetes, and CI/CD pipelines. 7 years in DevOps.',
     role: 'DevOps Engineer',
     skills: ['Docker', 'Kubernetes', 'AWS', 'Terraform'],
+    yearsOfExperience: 7,
+    expertiseLevel: 'Senior',
   },
   {
     _key: 'emma',
     name: 'Emma Thompson',
-    text: 'Research Scientist working on neural search and embedding models. Published papers on hybrid search techniques combining traditional and modern approaches.',
-    role: 'Research Scientist',
-    skills: ['Research', 'Neural Networks', 'Embeddings', 'Academic Writing'],
+    text: 'Principal Research Scientist working on neural search and embedding models. Published 15+ papers on hybrid search techniques combining traditional and modern approaches. 12 years in ML research, recognized expert in neural embeddings.',
+    role: 'Principal Research Scientist',
+    skills: ['Research', 'Neural Networks', 'Embeddings', 'Academic Writing', 'Hybrid Search'],
+    yearsOfExperience: 12,
+    expertiseLevel: 'Expert',
   },
   {
     _key: 'frank',
     name: 'Frank Rodriguez',
-    text: 'Database Administrator with deep knowledge of multi-model databases. Specializes in query optimization and indexing strategies.',
-    role: 'DBA',
+    text: 'Database Administrator with deep knowledge of multi-model databases. Specializes in query optimization and indexing strategies. 10 years managing enterprise databases.',
+    role: 'Senior DBA',
     skills: ['Database Design', 'Query Optimization', 'Indexing', 'Performance Tuning'],
+    yearsOfExperience: 10,
+    expertiseLevel: 'Senior',
   },
   {
     _key: 'grace',
     name: 'Grace Lee',
-    text: 'Product Manager for AI-powered search products. Bridging technical implementation with user needs and business requirements.',
+    text: 'Product Manager for AI-powered search products. Bridging technical implementation with user needs and business requirements. 6 years in product management.',
     role: 'Product Manager',
     skills: ['Product Strategy', 'User Research', 'AI Products', 'Agile'],
+    yearsOfExperience: 6,
+    expertiseLevel: 'Mid-Level',
   },
   {
     _key: 'henry',
     name: 'Henry Patel',
-    text: 'Software Architect designing enterprise search solutions. Advocates for combining semantic understanding with traditional keyword matching.',
-    role: 'Software Architect',
+    text: 'Principal Software Architect designing enterprise search solutions. Advocates for combining semantic understanding with traditional keyword matching. 15 years architecting large-scale systems.',
+    role: 'Principal Architect',
     skills: ['System Design', 'Search Architecture', 'Scalability', 'Documentation'],
+    yearsOfExperience: 15,
+    expertiseLevel: 'Expert',
   },
   {
     _key: 'iris',
     name: 'Iris Wang',
-    text: 'Frontend Developer creating intuitive search interfaces. Passionate about user experience and real-time search suggestions.',
+    text: 'Frontend Developer creating intuitive search interfaces. Passionate about user experience and real-time search suggestions. 4 years in frontend development.',
     role: 'Frontend Developer',
     skills: ['React', 'TypeScript', 'UI/UX', 'Performance'],
+    yearsOfExperience: 4,
+    expertiseLevel: 'Mid-Level',
   },
   {
     _key: 'jack',
     name: 'Jack Brown',
-    text: 'Technical Writer and developer advocate. Creates documentation and tutorials for complex search systems and AI tools.',
+    text: 'Technical Writer and developer advocate. Creates documentation and tutorials for complex search systems and AI tools. 5 years in technical communications.',
     role: 'Developer Advocate',
     skills: ['Technical Writing', 'Developer Relations', 'Teaching', 'Content Creation'],
+    yearsOfExperience: 5,
+    expertiseLevel: 'Mid-Level',
   },
 ];
 
@@ -309,16 +329,41 @@ async function setupDatabase() {
   console.log(`   ✓ Graph relationships created`);
 
   // 8. Create Vector Index (after documents are inserted)
+  // Vector indexes enable fast similarity search using Approximate Nearest Neighbor (ANN)
   try {
     await (col as any).ensureIndex({
+      // type: 'vector' - Specifies this is a vector index for similarity search
+      // Uses IVF (Inverted File) algorithm for fast approximate nearest neighbor search
       type: 'vector',
+      
+      // name: 'idx_vector' - Unique identifier for this index
+      // Used to reference the index in queries and management operations
       name: 'idx_vector',
+      
+      // fields: ['embedding'] - The document field containing the vector
+      // Must be an array of numbers (e.g., [0.23, -0.15, 0.42, ...])
       fields: ['embedding'],
+      
       params: {
+        // metric: 'cosine' - Distance metric for similarity calculation
+        // Options: 'cosine', 'euclidean' (L2), 'manhattan' (L1)
+        // Cosine is best for normalized vectors (direction matters, magnitude doesn't)
         metric: 'cosine',
+        
+        // dimension: 768 - Number of dimensions in each vector
+        // MUST match the embedding model output (nomic-embed-text = 768)
+        // Mismatch will cause errors during search
         dimension: config.ollama.embeddingDimensions,
-        nLists: 1, // Number of inverted lists (1 for small datasets)
+        
+        // nLists: 1 - Number of inverted lists (partitions) for IVF algorithm
+        // Higher = faster search but less accurate, lower = slower but more accurate
+        // Rule of thumb: sqrt(num_documents) or 1 for small datasets (<10k docs)
+        nLists: 1,
       },
+      
+      // inBackground: false - Index creation blocks until complete
+      // true = non-blocking (faster) but index not immediately available
+      // false = blocking (safer) ensures index ready before proceeding
       inBackground: false,
     });
     console.log(`✓ Vector index 'idx_vector' created`);
@@ -422,6 +467,8 @@ async function search(query: string) {
             name: doc.name,
             text: doc.text,
             role: doc.role,
+            yearsOfExperience: doc.yearsOfExperience,
+            expertiseLevel: doc.expertiseLevel,
             rrf_score: 1.0 / (k + rank),
             source: "hybrid_search"
         }
@@ -437,6 +484,8 @@ async function search(query: string) {
             name: doc.name,
             text: doc.text,
             role: doc.role,
+            yearsOfExperience: doc.yearsOfExperience,
+            expertiseLevel: doc.expertiseLevel,
             rrf_score: 1.0 / (k + rank),
             source: "hybrid_search"
         }
@@ -445,7 +494,8 @@ async function search(query: string) {
     // 4. Get initial hybrid results
     LET initial_results = (
         FOR doc IN UNION(bm25_with_rrf, vector_with_rrf)
-        COLLECT _id = doc._id, _key = doc._key, name = doc.name, text = doc.text, role = doc.role
+        COLLECT _id = doc._id, _key = doc._key, name = doc.name, text = doc.text, role = doc.role,
+                yearsOfExperience = doc.yearsOfExperience, expertiseLevel = doc.expertiseLevel
         AGGREGATE final_score = SUM(doc.rrf_score)
         SORT final_score DESC
         LIMIT ${limit}
@@ -455,6 +505,8 @@ async function search(query: string) {
             name: name,
             text: text,
             role: role,
+            yearsOfExperience: yearsOfExperience,
+            expertiseLevel: expertiseLevel,
             score: final_score,
             source: "hybrid_search"
         }
@@ -470,6 +522,8 @@ async function search(query: string) {
                 name: v.name,
                 text: v.text,
                 role: v.role,
+                yearsOfExperience: v.yearsOfExperience,
+                expertiseLevel: v.expertiseLevel,
                 score: 0.005,
                 source: "graph_expansion",
                 relationship: e.type,
@@ -498,16 +552,19 @@ async function search(query: string) {
   
   console.log(`\n🎯 Direct Matches (${directMatches.length}):`);
   directMatches.forEach((person: any, i: number) => {
-    console.log(`\n${i + 1}. ${person.name} - ${person.role}`);
-    console.log(`   Match Score: ${person.score.toFixed(4)}`);
+    const expertBadge = person.expertiseLevel === 'Expert' ? ' ⭐ EXPERT' : person.expertiseLevel === 'Senior' ? ' 🔹 Senior' : '';
+    console.log(`\n${i + 1}. ${person.name} - ${person.role}${expertBadge}`);
+    console.log(`   Experience: ${person.yearsOfExperience} years | Match Score: ${person.score.toFixed(4)}`);
     console.log(`   ${person.text}`);
   });
 
   if (graphMatches.length > 0) {
     console.log(`\n\n🔗 Connected People (${graphMatches.length}):`);
     graphMatches.forEach((person: any, i: number) => {
-      console.log(`\n${i + 1}. ${person.name} - ${person.role}`);
-      console.log(`   → ${person.relationship} ${person.connected_to} on "${person.project}"`);
+      const expertBadge = person.expertiseLevel === 'Expert' ? ' ⭐ EXPERT' : person.expertiseLevel === 'Senior' ? ' 🔹 Senior' : '';
+      console.log(`\n${i + 1}. ${person.name} - ${person.role}${expertBadge}`);
+      console.log(`   Experience: ${person.yearsOfExperience} years | Via: ${person.relationship} ${person.connected_to}`);
+      console.log(`   Project: "${person.project}"`);
       console.log(`   ${person.text}`);
     });
   }
@@ -570,14 +627,16 @@ async function main() {
     console.log('  yarn start:hybrid "your query"        - Search the knowledge base');
     console.log('  yarn start:hybrid reset               - Drop database and start fresh\n');
     console.log('Search Examples:');
-    console.log('  yarn start:hybrid "friend connections"');
-    console.log('  yarn start:hybrid "recommendation system"');
-    console.log('  yarn start:hybrid "real-time messaging"\n');
+    console.log('  yarn start:hybrid "help building search with neural embeddings"\n');
+    console.log('  This query demonstrates all 3 search types:');
+    console.log('    • BM25 finds exact keywords ("neural", "embeddings")');
+    console.log('    • Vector understands semantic meaning (search systems, ML expertise)');
+    console.log('    • Graph discovers collaborators (people who work together)\n');
     console.log('This searches a social network knowledge base using:');
-    console.log('  • BM25 keyword matching');
-    console.log('  • Vector semantic similarity');
-    console.log('  • RRF fusion');
-    console.log('  • Graph expansion to find related articles\n');
+    console.log('  • BM25 keyword matching (exact terms)');
+    console.log('  • Vector semantic similarity (meaning & context)');
+    console.log('  • RRF fusion (combines both)');
+    console.log('  • Graph expansion (finds collaborators)\n');
     return;
   }
 

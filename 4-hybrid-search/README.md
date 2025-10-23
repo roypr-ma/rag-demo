@@ -28,13 +28,27 @@ A **social network knowledge base** demonstrating true multi-model hybrid search
 
 ### Why Combine All Three?
 
-**Query**: "how to build friend connections"
+Let's use a realistic query to see why you need all three search types:
 
-- **BM25 alone**: Finds article with exact words "friend connections" ✅
-- **Vector alone**: Finds "social graph" article (semantically similar) ✅
-- **Graph traversal**: Discovers "user profiles" (enables friends) & "news feed" (uses connections) ✅
+**User Query**: `"I need help building a search feature with neural embeddings"`
 
-**Result**: 1 direct match becomes 5+ relevant articles by combining all three approaches!
+This query is perfect because it combines specific technical terms with natural language - just like real users search!
+
+| What Each Search Type Finds | Result | Why It Happens |
+|------------------------------|--------|----------------|
+| **❌ BM25 only** | Emma (1 person) | Finds "neural" + "embeddings" but MISSES "semantic search" experts |
+| **❌ Vector only** | Alice, Henry (2 people) | Understands concept but MISSES Emma who literally says "neural embeddings"! |
+| **✅ Hybrid (BM25+Vector)** | Emma ⭐, Alice 🔹, Henry ⭐ (3 people) | RRF fusion ranks best matches. **Emma = 12 years expert!** |
+| **✅✅ + Graph Traversal** | + Carol 🔹, Bob (5 people) | Discovers the COMPLETE team including collaborators |
+
+**Why This Shows Hybrid's Power:**
+- Each search type has a blind spot when used alone
+- BM25 misses semantic similarity (search ≈ neural embeddings)
+- Vector misses exact keyword matches (Emma literally has the skills!)
+- Graph discovers the actual team you need to build the feature
+- **Shows expertise levels**: ⭐ Expert, 🔹 Senior, and years of experience
+
+**Result**: 1 person → 5 people with **Emma (12 yrs, Expert)** as the top expert!
 
 ## Architecture
 
@@ -147,10 +161,14 @@ graph TB
 | **Multi-Model (Hybrid+Graph)** | Everything above + relationships | Most complex | Finds direct matches AND related docs |
 
 **Real Example from This Implementation:**
-- Query: "hybrid search"
-- **Direct matches** (3): Documents about hybrid search, vector search
-- **Graph expansion** (4): Automatically includes related docs about BM25, RRF algorithm, semantic search
-- Total context: 7 relevant documents instead of just 3!
+
+Query: `"I need help building a search feature with neural embeddings"`
+
+- **BM25**: Finds Emma (12 yrs ⭐ Expert) - has "neural" + "embeddings"
+- **Vector**: Finds Alice (8 yrs 🔹 Senior), Henry (15 yrs ⭐ Expert)
+- **Hybrid**: RRF ranks Emma #1 - **Principal Research Scientist with 12 years!**
+- **Graph**: Adds Carol (5 yrs), Bob (6 yrs) - the supporting team
+- **Result**: Complete team with clear expertise levels - you know who's the expert!
 
 ## Running Part 4
 
@@ -170,24 +188,28 @@ Just run your search! The first time, it will automatically set up the database:
 
 ```bash
 # Search the social network knowledge base
-yarn start:hybrid "how to build friend connections"
-yarn start:hybrid "real-time messaging system"
-yarn start:hybrid "content recommendation"
+yarn start:hybrid "help building search with neural embeddings"
+
+# The query above demonstrates all 3 search types:
+# - BM25 finds exact keyword matches ("neural", "embeddings")
+# - Vector understands semantic meaning (search systems, ML)
+# - Graph discovers collaborators (people who work together)
+# - Shows expertise: ⭐ Expert, 🔹 Senior + years of experience
 
 # Reset database (drop and recreate on next search)
 yarn start:hybrid reset
 ```
 
 **What happens:**
-1. **BM25** finds articles with exact keywords
-2. **Vector search** finds semantically similar articles
+1. **BM25** finds people with exact keywords in their profiles
+2. **Vector search** finds people with semantically similar expertise
 3. **RRF fusion** combines and ranks both result sets
-4. **Graph expansion** automatically includes related articles
+4. **Graph expansion** automatically includes connected colleagues
 
 The database setup happens automatically on first run and includes:
 - Creating database, collections, and graph
-- Ingesting 10 knowledge base articles with embeddings
-- Creating 16 relationships showing how topics connect
+- Ingesting 10 professional profiles with embeddings
+- Creating 18 relationships showing how people collaborate
 
 **Reset Database:**
 Use `yarn start:hybrid reset` to drop the database and start fresh. Useful for:
@@ -195,61 +217,7 @@ Use `yarn start:hybrid reset` to drop the database and start fresh. Useful for:
 - Clearing all data
 - Troubleshooting issues
 
-## Architecture
-
-### Multi-Model Search Flow
-
-```mermaid
-sequenceDiagram
-    participant U as Developer
-    participant A as Search App
-    participant O as Ollama
-    participant DB as ArangoDB
-    
-    U->>A: Query: "friend connections"
-    
-    rect rgb(255, 243, 224)
-        Note over A,O: Step 1: Embedding Generation
-        A->>O: Generate embedding for query
-        O-->>A: [0.23, -0.15, ..., 0.42]<br/>(768-dim vector)
-    end
-    
-    rect rgb(227, 242, 253)
-        Note over A,DB: Step 2: Dual Search (Hybrid)
-        A->>DB: Execute Multi-Model AQL Query
-        
-        par BM25 Keyword Search
-            DB->>DB: ArangoSearch View<br/>Find "friend" + "connections"<br/>→ friend_connections (BM25: 8.3)
-        and Vector Semantic Search
-            DB->>DB: Vector Index<br/>Cosine similarity<br/>→ user_profiles (sim: 0.78)<br/>→ friend_connections (sim: 0.91)
-        end
-    end
-    
-    rect rgb(255, 249, 196)
-        Note over DB: Step 3: RRF Fusion
-        DB->>DB: BM25: [friend_connections #1]
-        DB->>DB: Vector: [friend_connections #2, user_profiles #1]
-        DB->>DB: RRF = 1/(60 + rank)
-        DB->>DB: friend_connections: 1/61 + 1/62 = 0.0325
-        DB->>DB: user_profiles: 1/61 = 0.0164
-    end
-    
-    rect rgb(232, 245, 233)
-        Note over DB: Step 4: Graph Expansion
-        DB->>DB: Traverse graph from top results
-        DB->>DB: friend_connections → news_feed (powers)
-        DB->>DB: friend_connections → notifications (triggers)
-        DB->>DB: user_profiles → friend_connections (enables)
-    end
-    
-    rect rgb(200, 230, 201)
-        Note over A,U: Step 5: Return Enriched Results
-        DB-->>A: 🎯 Direct: friend_connections, user_profiles<br/>🔗 Related: news_feed, notifications
-        A-->>U: 4 relevant articles found<br/>(1 keyword + 1 semantic + 2 graph)
-    end
-```
-
-### Reciprocal Rank Fusion (RRF)
+## Reciprocal Rank Fusion (RRF)
 
 **Why RRF?** BM25 scores (0-15) and cosine similarity (0-1) use different scales. RRF converts ranks to comparable scores.
 
@@ -257,25 +225,26 @@ sequenceDiagram
 
 **Example from Social Network KB:**
 
-Query: "recommendation system"
+Query: "help building search with neural embeddings"
 
 **Two ranked lists:**
-- **BM25**: [recommendation_engine (rank=1), analytics (rank=2), content_search (rank=3)]
-- **Vector**: [news_feed (rank=1), recommendation_engine (rank=2), content_moderation (rank=3)]
+- **BM25**: [emma (rank=1, "neural embeddings"), alice (rank=3, "embeddings")]
+- **Vector**: [alice (rank=1, search/ML expert), emma (rank=2, neural networks), henry (rank=3, search systems)]
 
 **RRF Calculation:**
 ```
-recommendation_engine: 1/(60+1) + 1/(60+2) = 0.0164 + 0.0161 = 0.0325 ✅ Highest!
-news_feed:             1/(60+1)            = 0.0164
-analytics:             1/(60+2)            = 0.0161
-content_search:        1/(60+3)            = 0.0159
-content_moderation:    1/(60+3)            = 0.0159
+alice:  1/(60+3) + 1/(60+1) = 0.0159 + 0.0164 = 0.0323 ✅ Highest!
+emma:   1/(60+1) + 1/(60+2) = 0.0164 + 0.0161 = 0.0325 ✅ Even Higher!
+henry:  1/(60+3)            = 0.0159
 ```
 
-**Final Ranking:** recommendation_engine > news_feed > analytics > content_search = content_moderation
+**Final Ranking:** emma (rank 1+2) > alice (rank 3+1) > henry (rank 3 only)
+
+**Why it matters:** Emma appears in BOTH lists with good ranks, so RRF boosts her to the top!
+**Then Graph adds:** Carol (works with Alice), Bob (integrates features) → 5 total people
 
 **Key Benefits:**
-- Articles appearing in BOTH lists get boosted (recommendation_engine)
+- People appearing in BOTH lists get boosted (alice, henry)
 - No score normalization needed
 - Simple and effective
 
@@ -285,21 +254,31 @@ content_moderation:    1/(60+3)            = 0.0159
 
 | Search Type | Technology | Use Case | Example Query Result |
 |-------------|-----------|----------|---------------------|
-| **BM25 Keyword** | TF-IDF + doc length normalization | Exact term matching | "graph database" → finds "friend_connections" (contains both words) |
-| **Vector Semantic** | Neural embeddings + cosine similarity | Conceptual similarity | "graph database" → finds "recommendation_engine" (uses graph algorithms) |
-| **Graph Traversal** | Edge following + relationship types | Related content discovery | From "friend_connections" → finds "news_feed" (powered by connections) |
+| **BM25 Keyword** | TF-IDF + doc length normalization | Exact term matching | "graph database" → finds Bob (mentions "graph databases" exactly) |
+| **Vector Semantic** | Neural embeddings + cosine similarity | Conceptual similarity | "graph database" → finds Frank (DBA, related concept) |
+| **Graph Traversal** | Edge following + relationship types | Related people discovery | From Bob → finds Henry (reports to), David (collaborates with) |
 
 ### Why This Matters
 
-**Without Hybrid Search:**
-- Query "how do users connect" might miss "Friend Connections and Graph" (different wording)
-- Might find "Messaging" (has "users" and "connect") but miss the core friendship article
+**Real User Query:**
 
-**With Hybrid Search:**
-- BM25 catches "connections" keyword
-- Vector understands "how users connect" = friendship concept
-- Graph adds "User Profiles" (enables connections) and "News Feed" (uses connections)
-- Result: Comprehensive, contextualized search results
+Query: "I need help building a search feature with neural embeddings"
+
+**Without Hybrid (BM25 only):**
+- Finds Emma (says "neural" + "embeddings") ✓
+- MISSES Alice (says "semantic search" not exact keywords) ❌
+- **Result**: 1 person (but you don't know if she's the best)
+
+**With Hybrid (BM25 + Vector):**
+- BM25: Finds Emma (exact match) - **12 years ⭐ Expert**
+- Vector: Finds Alice (8 yrs 🔹 Senior), Henry (15 yrs ⭐ Expert)
+- RRF: Ranks Emma #1 (she's the neural embeddings expert!)
+- **Result**: 3 people with **clear expertise levels**
+
+**With Graph (+Traversal):**
+- Discovers Carol (5 yrs 🔹 - works with Alice on ranking systems)
+- Discovers Bob (6 yrs - backend developer who can integrate the feature)
+- **Result**: Complete team hierarchy - Emma leads, Alice/Henry support, Carol/Bob assist
 
 ## Implementation
 

@@ -51,7 +51,7 @@ yarn start:basic                        # Part 1: Basic RAG
 yarn start:chat                         # Part 2: Conversational RAG (Chains)
 yarn start:chat:agents                  # Part 2: Conversational RAG (Agents)
 yarn start:agentic                      # Part 3: Agentic RAG
-yarn start:hybrid "friend connections"  # Part 4: Hybrid search (auto-setup)
+yarn start:hybrid "help building search with neural embeddings"  # Part 4: Hybrid search
 yarn start:hybrid reset                 # Part 4: Reset database
 ```
 
@@ -171,21 +171,28 @@ yarn start:agentic  # ~90-180s
 **Search a social network knowledge base** using 3 types of search in one query.
 
 ```bash
-yarn start:hybrid "friend connections"    # First run: ~30-60s (auto-setup), then ~2-5s
-yarn start:hybrid "recommendation system"
-yarn start:hybrid reset                   # Reset database
+# Try this query that showcases all 3 search types:
+yarn start:hybrid "help building search with neural embeddings"
+
+# What happens:
+# - BM25 finds "neural" + "embeddings" (exact keywords)
+# - Vector understands search/ML expertise (semantic)
+# - Graph finds collaborators (relationships)
+# Result: Emma (12 yrs ⭐ Expert) + 4 team members!
+
+yarn start:hybrid reset  # Reset database
 ```
 
 **Three Search Types Combined:**
 1. **BM25 keyword search** - Traditional full-text (exact terms)
 2. **Vector semantic search** - AI embeddings (meaning & context)
-3. **Graph traversal** - Follows relationships to find connected articles
+3. **Graph traversal** - Follows relationships to find connected people
 
 **Why Multi-Model?**
-- **BM25 alone**: Finds "friend connections" article ✓
-- **Vector alone**: Finds "social graph" (semantically similar) ✓
-- **Graph traversal**: Discovers "user profiles" & "news feed" (connected) ✓
-- **Result**: 1 direct match becomes 5+ relevant articles!
+- **BM25 alone**: Finds people with exact keyword matches ✓
+- **Vector alone**: Finds people with semantically similar expertise ✓
+- **Graph traversal**: Discovers colleagues and collaborators ✓
+- **Result**: 1 direct match becomes 5+ relevant people!
 
 **What you'll learn:**
 - BM25 keyword search with ArangoSearch
@@ -197,11 +204,14 @@ yarn start:hybrid reset                   # Reset database
 
 **Real Example:**
 ```
-Query: "friend connections"
+Query: "help building search with neural embeddings"
 
-🎯 Direct (Hybrid): friend_connections, user_profiles
-🔗 Graph Related: news_feed, notifications
-Total: 4 relevant articles (1 keyword + 1 semantic + 2 graph)
+❌ BM25 only:   1 person  (Emma - exact match)
+❌ Vector only:  2 people (Alice, Henry - miss exact match!)
+✅ Hybrid:       3 people (Emma ⭐ 12yrs #1, Alice 🔹 8yrs, Henry ⭐ 15yrs)
+✅ + Graph:      5 people (+ Carol 🔹 5yrs, Bob 6yrs)
+
+Result: Complete team with expertise levels. Emma is your top expert!
 ```
 
 📄 **[Read detailed Part 4 documentation →](4-hybrid-search/README.md)**
