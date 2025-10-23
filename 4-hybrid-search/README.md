@@ -406,9 +406,38 @@ const hybridRetriever = async (query: string) => {
 
 **Add Features:**
 - Chat history storage in ArangoDB
-- Graph traversal for related documents
 - Metadata filtering (date, category, etc.)
 - Reranking with cross-encoders
+- Multiple graph traversal depths
+
+## Troubleshooting
+
+### Reset Database
+
+If you encounter issues or want to start fresh:
+
+```bash
+yarn start:hybrid reset
+```
+
+This drops the entire database. The next search will automatically recreate everything.
+
+### Common Issues
+
+**"Database connection failed"**
+- Ensure ArangoDB is running: `docker ps | grep arangodb`
+- Restart if needed: `docker-compose restart arangodb`
+
+**"Vector index feature not enabled"**
+- Check `docker-compose.yml` has `--experimental-vector-index true`
+- Restart containers: `docker-compose down && docker-compose up -d`
+
+**"Model not found"**
+- Pull the embedding model: `docker exec -it ollama-server ollama pull nomic-embed-text`
+
+**Stale data or schema issues**
+- Use reset: `yarn start:hybrid reset`
+- Then run any search to recreate
 
 ## Resources
 

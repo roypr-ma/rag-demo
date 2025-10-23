@@ -11,7 +11,7 @@ A progressive series of Retrieval-Augmented Generation (RAG) implementations usi
 | **[Part 1: Basic RAG](1-basic-rag/)** | Foundation RAG pipeline | Simple retrieval + generation | [Tutorial](https://js.langchain.com/docs/tutorials/rag/) |
 | **[Part 2: Conversational RAG](2-chat-history/)** | Adds chat history (2 approaches) | **Chains**: Fixed 1 retrieval<br>**Agents**: Multiple retrievals | [Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history) |
 | **[Part 3: Agentic RAG](3-agentic-rag/)** | **ReAct framework** agent | Reason → Act → Observe → Learn | [Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) |
-| **[Part 4: Hybrid Search](4-hybrid-search/)** | **ArangoDB** multi-model search | BM25 + Vector + RRF fusion | Custom Implementation |
+| **[Part 4: Multi-Model Hybrid Search](4-hybrid-search/)** | **3 search types in 1 query** | **BM25** keyword + **Vector** semantic + **Graph** traversal with RRF fusion | Custom Implementation |
 
 ## 🛠️ Prerequisites
 
@@ -47,11 +47,12 @@ docker exec ollama-server ollama pull llama3.1
 yarn build
 
 # 6. Run any part
-yarn start:basic        # Part 1: Basic RAG
-yarn start:chat         # Part 2: Conversational RAG (Chains)
-yarn start:chat:agents  # Part 2: Conversational RAG (Agents)
-yarn start:agentic      # Part 3: Agentic RAG
-yarn start:hybrid "database with graph support"  # Part 4: Hybrid search (auto-setup)
+yarn start:basic                        # Part 1: Basic RAG
+yarn start:chat                         # Part 2: Conversational RAG (Chains)
+yarn start:chat:agents                  # Part 2: Conversational RAG (Agents)
+yarn start:agentic                      # Part 3: Agentic RAG
+yarn start:hybrid "friend connections"  # Part 4: Hybrid search (auto-setup)
+yarn start:hybrid reset                 # Part 4: Reset database
 ```
 
 ## 📖 Project Structure
@@ -166,37 +167,41 @@ yarn start:agentic  # ~90-180s
 
 ---
 
-### Part 4: Hybrid Search with ArangoDB
-**Combine keyword and semantic search** for optimal retrieval quality.
+### Part 4: Multi-Model Hybrid Search with ArangoDB
+**Search a social network knowledge base** using 3 types of search in one query.
 
 ```bash
-yarn start:hybrid "database with graph support"  # First run: ~30-60s (auto-setup), then ~2-5s
+yarn start:hybrid "friend connections"    # First run: ~30-60s (auto-setup), then ~2-5s
+yarn start:hybrid "recommendation system"
+yarn start:hybrid reset                   # Reset database
 ```
 
-- **BM25 search**: Traditional keyword-based ranking
-- **Vector search**: Semantic similarity via embeddings
-- **RRF fusion**: Intelligently combines both approaches
-- **ArangoDB**: Multi-model database (document + graph + search)
+**Three Search Types Combined:**
+1. **BM25 keyword search** - Traditional full-text (exact terms)
+2. **Vector semantic search** - AI embeddings (meaning & context)
+3. **Graph traversal** - Follows relationships to find connected articles
 
-**The Hybrid Advantage:**
-- **Keyword search alone**: Misses semantically similar results
-- **Vector search alone**: May miss exact keyword matches
-- **Hybrid search**: Best of both worlds with RRF fusion
+**Why Multi-Model?**
+- **BM25 alone**: Finds "friend connections" article ✓
+- **Vector alone**: Finds "social graph" (semantically similar) ✓
+- **Graph traversal**: Discovers "user profiles" & "news feed" (connected) ✓
+- **Result**: 1 direct match becomes 5+ relevant articles!
 
 **What you'll learn:**
 - BM25 keyword search with ArangoSearch
 - Vector similarity search with embeddings
-- Reciprocal Rank Fusion (RRF) algorithm
-- AQL query language for hybrid queries
-- Multi-model database architecture
+- Reciprocal Rank Fusion (RRF) to combine results
+- Graph traversal for relationship-based discovery
+- AQL multi-model queries
+- Social network knowledge base architecture
 
-**Example:**
+**Real Example:**
 ```
-Query: "database with graph support"
+Query: "friend connections"
 
-BM25 results:    [doc6: "graph database", doc1: "multi-model"]
-Vector results:  [doc1: "multi-model", doc6: "graph database"]
-RRF fusion:      [doc1: 0.0325, doc6: 0.0323] ← Combined ranking
+🎯 Direct (Hybrid): friend_connections, user_profiles
+🔗 Graph Related: news_feed, notifications
+Total: 4 relevant articles (1 keyword + 1 semantic + 2 graph)
 ```
 
 📄 **[Read detailed Part 4 documentation →](4-hybrid-search/README.md)**
