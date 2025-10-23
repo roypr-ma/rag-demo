@@ -8,13 +8,16 @@
     "start:basic": "tsc && node dist/1-basic-rag/index.js",
     "start:chat": "tsc && node dist/2-chat-history/index-chains.js",
     "start:chat:agents": "tsc && node dist/2-chat-history/index-agents.js",
-    "start:agentic": "tsc && node dist/3-agentic-rag/index.js"
+    "start:agentic": "tsc && node dist/3-agentic-rag/index.js",
+    "start:hybrid": "node dist/4-hybrid-search/index.js"
   },
   "dependencies": {
     "@langchain/community": "^0.3.57",
     "@langchain/core": "^0.3.78",
     "@langchain/langgraph": "^0.4.9",
     "@langchain/ollama": "^0.2.4",
+    "arangojs": "^10.1.2",
+    "axios": "^1.12.2",
     "cheerio": "^1.1.2",
     "langchain": "^0.3.36"
   },

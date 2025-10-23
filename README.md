@@ -4,13 +4,14 @@ A progressive series of Retrieval-Augmented Generation (RAG) implementations usi
 
 > **Tutorial-Based Learning:** This project implements official LangChain tutorials with local Ollama models instead of OpenAI.
 
-## 📚 Three Parts
+## 📚 Four Parts
 
 | Part | Description | Key Features | Tutorial |
 |------|-------------|--------------|----------|
 | **[Part 1: Basic RAG](1-basic-rag/)** | Foundation RAG pipeline | Simple retrieval + generation | [Tutorial](https://js.langchain.com/docs/tutorials/rag/) |
 | **[Part 2: Conversational RAG](2-chat-history/)** | Adds chat history (2 approaches) | **Chains**: Fixed 1 retrieval<br>**Agents**: Multiple retrievals | [Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history) |
 | **[Part 3: Agentic RAG](3-agentic-rag/)** | **ReAct framework** agent | Reason → Act → Observe → Learn | [Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) |
+| **[Part 4: Hybrid Search](4-hybrid-search/)** | **ArangoDB** multi-model search | BM25 + Vector + RRF fusion | Custom Implementation |
 
 ## 🛠️ Prerequisites
 
@@ -29,7 +30,7 @@ colima stop && colima start --memory 8 --cpu 4
 # 2. Install dependencies
 yarn install
 
-# 3. Start Ollama
+# 3. Start services (Ollama + ArangoDB)
 docker-compose up -d
 
 # 4. Pull required models
@@ -50,6 +51,7 @@ yarn start:basic        # Part 1: Basic RAG
 yarn start:chat         # Part 2: Conversational RAG (Chains)
 yarn start:chat:agents  # Part 2: Conversational RAG (Agents)
 yarn start:agentic      # Part 3: Agentic RAG
+yarn start:hybrid "database with graph support"  # Part 4: Hybrid search (auto-setup)
 ```
 
 ## 📖 Project Structure
@@ -66,9 +68,12 @@ rag-langchain/
 ├── 3-agentic-rag/
 │   ├── index.ts              # Agentic RAG with LangGraph
 │   └── README.md             # Detailed Part 3 docs
+├── 4-hybrid-search/
+│   ├── index.ts              # Hybrid search with ArangoDB
+│   └── README.md             # Detailed Part 4 docs
 ├── utils/
 │   └── logger.ts             # Logging utilities
-├── docker-compose.yml        # Ollama service
+├── docker-compose.yml        # Ollama + ArangoDB services
 ├── package.json
 └── README.md                 # This file
 ```
@@ -161,6 +166,43 @@ yarn start:agentic  # ~90-180s
 
 ---
 
+### Part 4: Hybrid Search with ArangoDB
+**Combine keyword and semantic search** for optimal retrieval quality.
+
+```bash
+yarn start:hybrid "database with graph support"  # First run: ~30-60s (auto-setup), then ~2-5s
+```
+
+- **BM25 search**: Traditional keyword-based ranking
+- **Vector search**: Semantic similarity via embeddings
+- **RRF fusion**: Intelligently combines both approaches
+- **ArangoDB**: Multi-model database (document + graph + search)
+
+**The Hybrid Advantage:**
+- **Keyword search alone**: Misses semantically similar results
+- **Vector search alone**: May miss exact keyword matches
+- **Hybrid search**: Best of both worlds with RRF fusion
+
+**What you'll learn:**
+- BM25 keyword search with ArangoSearch
+- Vector similarity search with embeddings
+- Reciprocal Rank Fusion (RRF) algorithm
+- AQL query language for hybrid queries
+- Multi-model database architecture
+
+**Example:**
+```
+Query: "database with graph support"
+
+BM25 results:    [doc6: "graph database", doc1: "multi-model"]
+Vector results:  [doc1: "multi-model", doc6: "graph database"]
+RRF fusion:      [doc1: 0.0325, doc6: 0.0323] ← Combined ranking
+```
+
+📄 **[Read detailed Part 4 documentation →](4-hybrid-search/README.md)**
+
+---
+
 ## 🔧 Configuration
 
 ### Models
@@ -169,7 +211,8 @@ yarn start:agentic  # ~90-180s
 - **LLM (Part 1, 2A)**: `llama2` (~3.8GB) - Good reasoning, balanced performance
 - **LLM (Part 2B)**: `qwen2.5:3b` (~2GB) - Tool-calling support
 - **LLM (Part 3)**: `llama3.1` (~4.7GB, requires 8GB RAM) - Better tool-calling and instruction following
-- **Embeddings**: `nomic-embed-text` (~274MB) - 768-dimensional vectors
+- **Embeddings (All Parts)**: `nomic-embed-text` (~274MB) - 768-dimensional vectors
+- **Database (Part 4)**: `ArangoDB` - Multi-model database with BM25 and vector search
 
 **💡 Note:** Part 3 uses a larger model (`llama3.1`) for more reliable document grading and query rewriting.
 
@@ -197,16 +240,19 @@ Browse models: [ollama.com/library](https://ollama.com/library)
 
 ## 📊 Feature Comparison
 
-| Feature | Part 1 | Part 2 | Part 3 |
-|---------|:------:|:------:|:------:|
-| **Basic Retrieval** | ✅ | ✅ | ✅ |
-| **Chat History** | ❌ | ✅ | ❌ |
-| **Question Reformulation** | ❌ | ✅ | ✅ |
-| **Decision Making** | ❌ | ❌ | ✅ |
-| **Document Grading** | ❌ | ❌ | ✅ |
-| **Self-Correction** | ❌ | ❌ | ✅ |
-| **Multi-Document Search** | ❌ | ❌ | ✅ |
-| **Conditional Logic** | ❌ | ❌ | ✅ |
+| Feature | Part 1 | Part 2 | Part 3 | Part 4 |
+|---------|:------:|:------:|:------:|:------:|
+| **Vector Search** | ✅ | ✅ | ✅ | ✅ |
+| **Keyword Search (BM25)** | ❌ | ❌ | ❌ | ✅ |
+| **Hybrid Search (RRF)** | ❌ | ❌ | ❌ | ✅ |
+| **Chat History** | ❌ | ✅ | ❌ | ❌ |
+| **Question Reformulation** | ❌ | ✅ | ✅ | ❌ |
+| **Decision Making** | ❌ | ❌ | ✅ | ❌ |
+| **Document Grading** | ❌ | ❌ | ✅ | ❌ |
+| **Self-Correction** | ❌ | ❌ | ✅ | ❌ |
+| **LLM Generation** | ✅ | ✅ | ✅ | ❌ |
+| **Persistent Storage** | ❌ | ❌ | ❌ | ✅ |
+| **Graph Capabilities** | ❌ | ❌ | ❌ | ✅ |
 
 ## 🐛 Troubleshooting
 
@@ -244,12 +290,13 @@ curl -X POST http://localhost:11434/api/generate \
 
 ### LLM Infrastructure
 - **[Ollama](https://ollama.com/)** - Local LLM runtime (via Docker)
+- **[ArangoDB](https://www.arangodb.com/)** - Multi-model database (via Docker)
 
 ### Models
 - **[Llama2](https://ollama.com/library/llama2)** (~3.8GB) - Part 1, 2A: General-purpose reasoning
 - **[Qwen2.5:3b](https://ollama.com/library/qwen2.5)** (~2GB) - Part 2B: Lightweight tool-calling
 - **[Llama3.1](https://ollama.com/library/llama3.1)** (~4.7GB) - Part 3: Advanced tool-calling and instruction following
-- **[Nomic Embed Text](https://ollama.com/library/nomic-embed-text)** (~274MB) - 768-dimensional embeddings
+- **[Nomic Embed Text](https://ollama.com/library/nomic-embed-text)** (~274MB) - All parts: 768-dimensional embeddings
 
 ## 📚 Resources
 
