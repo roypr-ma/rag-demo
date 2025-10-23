@@ -5,10 +5,10 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "start:basic": "tsc && node dist/1-basic-rag/index.js",
-    "start:chat": "tsc && node dist/2-chat-history/index-chains.js",
-    "start:chat:agents": "tsc && node dist/2-chat-history/index-agents.js",
-    "start:agentic": "tsc && node dist/3-agentic-rag/index.js",
+    "start:basic": "node dist/1-basic-rag/index.js",
+    "start:chat": "node dist/2-chat-history/index-chains.js",
+    "start:chat:agents": "node dist/2-chat-history/index-agents.js",
+    "start:agentic": "node dist/3-agentic-rag/index.js",
     "start:hybrid": "node dist/4-hybrid-search/index.js"
   },
   "dependencies": {
