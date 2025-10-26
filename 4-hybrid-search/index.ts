@@ -559,7 +559,9 @@ async function search(query: string) {
     LET related_people = (
         FOR result IN initial_results
         FOR v, e, p IN 1..1 ANY result._id GRAPH ${config.arango.graphName}
+            // Filter out direct matches and non-person nodes (projects)
             FILTER v._id NOT IN direct_ids
+            FILTER SPLIT(v._id, "/")[0] == "docs"
             COLLECT person_id = v._id INTO relationships
             LET person = FIRST(relationships[*].v)
             LET rel_list = (
