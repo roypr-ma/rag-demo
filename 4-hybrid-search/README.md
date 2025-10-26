@@ -32,7 +32,7 @@ Combining multiple search techniques for better results than any single approach
 ```mermaid
 graph TB
     subgraph "User Layer"
-        Q["🔍 Search Query: neural embeddings expert"]
+        Q["🔍 Search Query: who can help me build a search system"]
     end
     
     subgraph "Application Layer"
@@ -69,9 +69,9 @@ graph TB
         S3["🔄 RRF: Emma #1"]
         S4["🕸️ Graph: + Carol, Bob"]
         
-        S1 --> S3
-        S2 --> S3
-        S3 --> S4
+        S1 -->|Keyword results| S3
+        S2 -->|Semantic results| S3
+        S3 -->|Top 3 ranked| S4
     end
     
     subgraph "Results"
@@ -79,31 +79,31 @@ graph TB
         R2["🔗 Graph: Carol🔹 Bob"]
         FINAL["📋 5 people with expertise levels"]
         
-        R1 --> FINAL
-        R2 --> FINAL
+        R1 -->|Direct matches| FINAL
+        R2 -->|Connected people| FINAL
     end
     
-    Q --> APP
-    APP --> EMB
-    EMB --> APP
-    APP --> AQL
+    Q -->|User input| APP
+    APP -->|Query text| EMB
+    EMB -->|768-dim vector| APP
+    APP -->|Query + vector| AQL
     
-    DOCS --> VIDX
-    DOCS --> BVIEW
-    DOCS --> GRAPH
-    EDGES --> GRAPH
+    DOCS -->|Embeddings| VIDX
+    DOCS -->|Text fields| BVIEW
+    DOCS -->|Nodes| GRAPH
+    EDGES -->|Relationships| GRAPH
     
-    VIDX --> AQL
-    BVIEW --> AQL
-    GRAPH --> AQL
+    VIDX -->|Vector search| AQL
+    BVIEW -->|BM25 search| AQL
+    GRAPH -->|Traversal| AQL
     
-    AQL --> S1
-    AQL --> S2
-    S4 --> R1
-    S4 --> R2
+    AQL -->|BM25 query| S1
+    AQL -->|Vector query| S2
+    S4 -->|Hybrid results| R1
+    S4 -->|Expand via graph| R2
     
-    FINAL --> APP
-    APP --> Q
+    FINAL -->|Results| APP
+    APP -->|Display| Q
     
     style Q fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
     style EMB fill:#fff3e0,stroke:#f57c00,stroke-width:2px
@@ -282,4 +282,4 @@ const hybridRetriever = async (query: string) => {
 
 ---
 
-**Ready to try?** Run `yarn start:hybrid "help building search with neural embeddings"` →
+**Ready to try?** Run `yarn start:hybrid "who can help me build a search system"` →

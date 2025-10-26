@@ -204,7 +204,7 @@ yarn start:hybrid "who can help me build a search system"
 
 **Real Example:**
 ```
-Query: "help building search with neural embeddings"
+Query: "who can help me build a search system"
 
 ❌ BM25 only:   1 person  (Emma - exact match)
 ❌ Vector only:  2 people (Alice, Henry - miss exact match!)
