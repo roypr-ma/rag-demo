@@ -16,12 +16,12 @@ Combining multiple search techniques for better results than any single approach
 
 ### Why All Three?
 
-**User Query**: `"I need help building a search feature with neural embeddings"`
+**User Query**: `"who can help me build a search system"`
 
 | Approach | Finds | Result |
 |----------|-------|--------|
-| **❌ BM25 only** | Emma | 1 person (misses semantic matches) |
-| **❌ Vector only** | Alice, Henry | 2 people (misses exact keywords!) |
+| **❌ BM25 only** | Emma | 1 person (only exact "search" match) |
+| **❌ Vector only** | Alice, Henry | 2 people (similar expertise, misses keyword!) |
 | **✅ Hybrid** | Emma ⭐ 12yrs, Alice 🔹 8yrs, Henry ⭐ 15yrs | 3 people (RRF ranks Emma #1) |
 | **✅✅ + Graph** | + Carol 🔹 5yrs, Bob 6yrs | **5 people - complete team!** |
 
@@ -138,13 +138,13 @@ docker-compose up -d
 docker exec -it ollama-server ollama pull nomic-embed-text  # ~274MB
 
 # Search! (database resets on every run)
-yarn start:hybrid "help building search with neural embeddings"
+yarn start:hybrid "who can help me build a search system"
 ```
 
 ### What Happens
 
-1. **BM25** finds exact keywords ("neural", "embeddings")
-2. **Vector** finds semantic matches (search/ML expertise)
+1. **BM25** finds exact keywords ("search")
+2. **Vector** finds semantic matches (ML/engineering expertise)
 3. **RRF** combines and ranks (Emma #1)
 4. **Graph** discovers collaborators (Carol, Bob)
 
@@ -158,7 +158,7 @@ yarn start:hybrid "help building search with neural embeddings"
 
 **Example:**
 
-Query: "help building search with neural embeddings"
+Query: "who can help me build a search system"
 
 ```
 BM25:   [emma (rank=1), alice (rank=3)]

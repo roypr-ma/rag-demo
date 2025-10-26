@@ -170,13 +170,13 @@ yarn start:agentic  # ~90-180s
 **Search a social network knowledge base** using 3 types of search in one query.
 
 ```bash
-# Example: Find experts who can help with neural embeddings
-yarn start:hybrid "help building search with neural embeddings"
+# Example: Find people who can help build a search system
+yarn start:hybrid "who can help me build a search system"
 
 # What happens:
 # 1. Database resets automatically (fresh data every run)
-# 2. BM25 finds exact keywords: "neural" + "embeddings"
-# 3. Vector understands semantics: search/ML expertise
+# 2. BM25 finds exact keywords: "search" + "system"
+# 3. Vector understands semantics: ML/engineering expertise
 # 4. RRF combines & ranks results: Emma #1 (appears in both!)
 # 5. Graph expands: finds Emma's collaborators & team
 # 
