@@ -51,8 +51,7 @@ yarn start:basic                        # Part 1: Basic RAG
 yarn start:chat                         # Part 2: Conversational RAG (Chains)
 yarn start:chat:agents                  # Part 2: Conversational RAG (Agents)
 yarn start:agentic                      # Part 3: Agentic RAG
-yarn start:hybrid "help building search with neural embeddings"  # Part 4: Hybrid search
-yarn start:hybrid reset                 # Part 4: Reset database
+yarn start:hybrid "your search query"   # Part 4: Hybrid search (requires query argument)
 ```
 
 ## 📖 Project Structure
@@ -171,15 +170,17 @@ yarn start:agentic  # ~90-180s
 **Search a social network knowledge base** using 3 types of search in one query.
 
 ```bash
-# Try this query that showcases all 3 search types:
+# Example: Find experts who can help with neural embeddings
 yarn start:hybrid "help building search with neural embeddings"
 
 # What happens:
-# - Database resets automatically for consistent results
-# - BM25 finds "neural" + "embeddings" (exact keywords)
-# - Vector understands search/ML expertise (semantic)
-# - Graph finds collaborators (relationships)
-# Result: Emma (12 yrs ⭐ Expert) + 4 team members!
+# 1. Database resets automatically (fresh data every run)
+# 2. BM25 finds exact keywords: "neural" + "embeddings"
+# 3. Vector understands semantics: search/ML expertise
+# 4. RRF combines & ranks results: Emma #1 (appears in both!)
+# 5. Graph expands: finds Emma's collaborators & team
+# 
+# Result: Emma (Principal Scientist, 12 yrs ⭐) + 4 team members
 ```
 
 **Three Search Types Combined:**
