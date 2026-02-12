@@ -4,13 +4,14 @@ A progressive series of Retrieval-Augmented Generation (RAG) implementations usi
 
 > **Tutorial-Based Learning:** This project implements official LangChain tutorials with local Ollama models instead of OpenAI.
 
-## 📚 Three Parts
+## 📚 Four Parts
 
 | Part | Description | Key Features | Tutorial |
 |------|-------------|--------------|----------|
 | **[Part 1: Basic RAG](1-basic-rag/)** | Foundation RAG pipeline | Simple retrieval + generation | [Tutorial](https://js.langchain.com/docs/tutorials/rag/) |
 | **[Part 2: Conversational RAG](2-chat-history/)** | Adds chat history (2 approaches) | **Chains**: Fixed 1 retrieval<br>**Agents**: Multiple retrievals | [Tutorial](https://js.langchain.com/docs/tutorials/qa_chat_history) |
 | **[Part 3: Agentic RAG](3-agentic-rag/)** | **ReAct framework** agent | Reason → Act → Observe → Learn | [Tutorial](https://docs.langchain.com/oss/javascript/langgraph/agentic-rag) |
+| **[Part 4: Multi-Model Hybrid Search](4-hybrid-search/)** | **3 search types in 1 query** | **BM25** keyword + **Vector** semantic + **Graph** traversal with RRF fusion | Custom Implementation |
 
 ## 🛠️ Prerequisites
 
@@ -29,7 +30,7 @@ colima stop && colima start --memory 8 --cpu 4
 # 2. Install dependencies
 yarn install
 
-# 3. Start Ollama
+# 3. Start services (Ollama + ArangoDB)
 docker-compose up -d
 
 # 4. Pull required models
@@ -46,10 +47,11 @@ docker exec ollama-server ollama pull llama3.1
 yarn build
 
 # 6. Run any part
-yarn start:basic        # Part 1: Basic RAG
-yarn start:chat         # Part 2: Conversational RAG (Chains)
-yarn start:chat:agents  # Part 2: Conversational RAG (Agents)
-yarn start:agentic      # Part 3: Agentic RAG
+yarn start:basic                        # Part 1: Basic RAG
+yarn start:chat                         # Part 2: Conversational RAG (Chains)
+yarn start:chat:agents                  # Part 2: Conversational RAG (Agents)
+yarn start:agentic                      # Part 3: Agentic RAG
+yarn start:hybrid "your search query"   # Part 4: Hybrid search (requires query argument)
 ```
 
 ## 📖 Project Structure
@@ -66,9 +68,12 @@ rag-langchain/
 ├── 3-agentic-rag/
 │   ├── index.ts              # Agentic RAG with LangGraph
 │   └── README.md             # Detailed Part 3 docs
+├── 4-hybrid-search/
+│   ├── index.ts              # Hybrid search with ArangoDB
+│   └── README.md             # Detailed Part 4 docs
 ├── utils/
 │   └── logger.ts             # Logging utilities
-├── docker-compose.yml        # Ollama service
+├── docker-compose.yml        # Ollama + ArangoDB services
 ├── package.json
 └── README.md                 # This file
 ```
@@ -161,6 +166,58 @@ yarn start:agentic  # ~90-180s
 
 ---
 
+### Part 4: Multi-Model Hybrid Search with ArangoDB
+**Search a social network knowledge base** using 3 types of search in one query.
+
+```bash
+# Example: Find people who can help build a search system
+yarn start:hybrid "who can help me build a search system"
+
+# What happens:
+# 1. Database resets automatically (fresh data every run)
+# 2. BM25 finds exact keywords: "search" + "system"
+# 3. Vector understands semantics: ML/engineering expertise
+# 4. RRF combines & ranks results: Emma #1 (appears in both!)
+# 5. Graph expands: finds Emma's collaborators & team
+# 
+# Result: Emma (Principal Scientist, 12 yrs ⭐) + 4 team members
+```
+
+**Three Search Types Combined:**
+1. **BM25 keyword search** - Traditional full-text (exact terms)
+2. **Vector semantic search** - AI embeddings (meaning & context)
+3. **Graph traversal** - Follows relationships to find connected people
+
+**Why Multi-Model?**
+- **BM25 alone**: Finds people with exact keyword matches ✓
+- **Vector alone**: Finds people with semantically similar expertise ✓
+- **Graph traversal**: Discovers colleagues and collaborators ✓
+- **Result**: 1 direct match becomes 5+ relevant people!
+
+**What you'll learn:**
+- BM25 keyword search with ArangoSearch
+- Vector similarity search with embeddings
+- Reciprocal Rank Fusion (RRF) to combine results
+- Graph traversal for relationship-based discovery
+- AQL multi-model queries
+- Social network knowledge base architecture
+
+**Real Example:**
+```
+Query: "who can help me build a search system"
+
+❌ BM25 only:   1 person  (Emma - exact match)
+❌ Vector only:  2 people (Alice, Henry - miss exact match!)
+✅ Hybrid:       3 people (Emma ⭐ 12yrs #1, Alice 🔹 8yrs, Henry ⭐ 15yrs)
+✅ + Graph:      5 people (+ Carol 🔹 5yrs, Bob 6yrs)
+
+Result: Complete team with expertise levels. Emma is your top expert!
+```
+
+📄 **[Read detailed Part 4 documentation →](4-hybrid-search/README.md)**
+
+---
+
 ## 🔧 Configuration
 
 ### Models
@@ -169,7 +226,8 @@ yarn start:agentic  # ~90-180s
 - **LLM (Part 1, 2A)**: `llama2` (~3.8GB) - Good reasoning, balanced performance
 - **LLM (Part 2B)**: `qwen2.5:3b` (~2GB) - Tool-calling support
 - **LLM (Part 3)**: `llama3.1` (~4.7GB, requires 8GB RAM) - Better tool-calling and instruction following
-- **Embeddings**: `nomic-embed-text` (~274MB) - 768-dimensional vectors
+- **Embeddings (All Parts)**: `nomic-embed-text` (~274MB) - 768-dimensional vectors
+- **Database (Part 4)**: `ArangoDB` - Multi-model database with BM25 and vector search
 
 **💡 Note:** Part 3 uses a larger model (`llama3.1`) for more reliable document grading and query rewriting.
 
@@ -197,16 +255,19 @@ Browse models: [ollama.com/library](https://ollama.com/library)
 
 ## 📊 Feature Comparison
 
-| Feature | Part 1 | Part 2 | Part 3 |
-|---------|:------:|:------:|:------:|
-| **Basic Retrieval** | ✅ | ✅ | ✅ |
-| **Chat History** | ❌ | ✅ | ❌ |
-| **Question Reformulation** | ❌ | ✅ | ✅ |
-| **Decision Making** | ❌ | ❌ | ✅ |
-| **Document Grading** | ❌ | ❌ | ✅ |
-| **Self-Correction** | ❌ | ❌ | ✅ |
-| **Multi-Document Search** | ❌ | ❌ | ✅ |
-| **Conditional Logic** | ❌ | ❌ | ✅ |
+| Feature | Part 1 | Part 2 | Part 3 | Part 4 |
+|---------|:------:|:------:|:------:|:------:|
+| **Vector Search** | ✅ | ✅ | ✅ | ✅ |
+| **Keyword Search (BM25)** | ❌ | ❌ | ❌ | ✅ |
+| **Hybrid Search (RRF)** | ❌ | ❌ | ❌ | ✅ |
+| **Chat History** | ❌ | ✅ | ❌ | ❌ |
+| **Question Reformulation** | ❌ | ✅ | ✅ | ❌ |
+| **Decision Making** | ❌ | ❌ | ✅ | ❌ |
+| **Document Grading** | ❌ | ❌ | ✅ | ❌ |
+| **Self-Correction** | ❌ | ❌ | ✅ | ❌ |
+| **LLM Generation** | ✅ | ✅ | ✅ | ❌ |
+| **Persistent Storage** | ❌ | ❌ | ❌ | ✅ |
+| **Graph Capabilities** | ❌ | ❌ | ❌ | ✅ |
 
 ## 🐛 Troubleshooting
 
@@ -244,12 +305,13 @@ curl -X POST http://localhost:11434/api/generate \
 
 ### LLM Infrastructure
 - **[Ollama](https://ollama.com/)** - Local LLM runtime (via Docker)
+- **[ArangoDB](https://www.arangodb.com/)** - Multi-model database (via Docker)
 
 ### Models
 - **[Llama2](https://ollama.com/library/llama2)** (~3.8GB) - Part 1, 2A: General-purpose reasoning
 - **[Qwen2.5:3b](https://ollama.com/library/qwen2.5)** (~2GB) - Part 2B: Lightweight tool-calling
 - **[Llama3.1](https://ollama.com/library/llama3.1)** (~4.7GB) - Part 3: Advanced tool-calling and instruction following
-- **[Nomic Embed Text](https://ollama.com/library/nomic-embed-text)** (~274MB) - 768-dimensional embeddings
+- **[Nomic Embed Text](https://ollama.com/library/nomic-embed-text)** (~274MB) - All parts: 768-dimensional embeddings
 
 ## 📚 Resources
 

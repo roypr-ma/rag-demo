@@ -1,18 +1,46 @@
+version: '3.8'
+
 services:
+  arangodb:
+    image: arangodb/arangodb:latest
+    container_name: arangodb_hybrid
+    command: ["arangod", "--server.endpoint", "tcp://0.0.0.0:8529", "--experimental-vector-index", "true"]
+    ports:
+      # This exposes ArangoDB's default port (8529) on your host machine.
+      # You can access the ArangoDB web UI at http://localhost:8529.
+      - "8529:8529"
+    environment:
+      # This sets the password for ArangoDB's 'root' user.
+      # This is crucial for the database's initial setup.
+      - ARANGO_ROOT_PASSWORD=testpass
+    volumes:
+      # Mounts a named volume 'arangodb_data' to the container's main database storage directory.
+      # This ensures your data persists even if the container is stopped, removed, or recreated.
+      - arangodb_data:/var/lib/arangodb3
+      # Mounts another named volume for ArangoDB's Foxx applications.
+      - arangodb_apps_data:/var/lib/arangodb3-apps
+
   ollama:
     image: ollama/ollama
     container_name: ollama-server
     ports:
+      # This exposes Ollama's default API port (11434) on your host machine.
+      # Your Node.js app will connect to http://localhost:11434.
       - "11434:11434"
     volumes:
+      # This mounts the 'ollama_data' volume to the directory inside the container
+      # where Ollama stores its downloaded models. This prevents you from
+      # having to re-download models every time you restart the container.
       - ollama_data:/root/.ollama
     deploy:
       resources:
         limits:
           memory: 8G  # Memory limit for llama2
         reservations:
-          memory: 4G  # Reserve at least 4GB
+          memory: 4G  # Docker will reserve at least 4GB of RAM for this container.
     restart: unless-stopped
 
 volumes:
+  arangodb_data:
+  arangodb_apps_data:
   ollama_data:
